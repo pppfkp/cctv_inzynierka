@@ -13,6 +13,19 @@ services:
     volumes:
       - pgvector_data:/var/lib/postgresql/data
 
+  timescale-db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: timescale-container
+    environment:
+      POSTGRES_USER: pppfkp
+      POSTGRES_PASSWORD: pppfkp123$
+      POSTGRES_DB: detection
+    ports:
+      - "5433:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      
+
   django-app:
     build:
       context: ./cctv_django_project 
@@ -28,3 +41,4 @@ services:
 
 volumes:
   pgvector_data:
+  timescale_data:
