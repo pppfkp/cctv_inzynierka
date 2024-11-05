@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  pgvector-db:
+    image: pgvector/pgvector:pg17
+    container_name: pgvector-container
+    environment:
+      POSTGRES_USER: pppfkp
+      POSTGRES_PASSWORD: pppfkp123$
+      POSTGRES_DB: detection
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+
+  django-app:
+    build:
+      context: ./cctv_django_project 
+      dockerfile: Dockerfile            
+    container_name: cctv_django_app
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - pgvector-db
+    volumes:
+      - ./cctv_django_project:/usr/src/app  # Mount the Django app directory for live updates
+
+volumes:
+  pgvector_data:
