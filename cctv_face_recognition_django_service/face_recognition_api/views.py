@@ -10,6 +10,7 @@ from pgvector.django import L2Distance
 import numpy as np
 from PIL import Image
 import io
+from .utils import extract_embedding
 
 class DeleteEmbeddingView(APIView):
     def delete(self, request, embedding_id):
@@ -148,16 +149,4 @@ class FindClosestEmbeddingView(APIView):
         else:
             return Response({"error": "No embeddings found"}, status=status.HTTP_404_NOT_FOUND)
 
-def extract_embedding(photo):
-    """
-    Extracts an embedding from a photo.
-    This function takes an image and returns a 512-dimensional vector.
-    """
-    try:
-        image = Image.open(photo)
-        # Perform image processing and extract the embedding vector
-        embedding = np.random.rand(512).tolist()  # will replace later with actual logic
-        return embedding
-    except Exception as e:
-        print(f"Error extracting embedding: {e}")
-        return None
+
