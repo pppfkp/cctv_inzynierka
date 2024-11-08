@@ -51,6 +51,13 @@ services:
       - pgvector-db
     volumes:
       - ./cctv_face_recognition_django_service:/usr/src/app  # Mount the Django app directory for live updates    
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1 # alternatively, use `count: all` for all GPUs
+              capabilities: [gpu]
 
 volumes:
   pgvector_data:
