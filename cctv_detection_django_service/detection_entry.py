@@ -1,0 +1,3 @@
+# CAMERA_LINK = "rtsp://192.168.0.107"
+CAMERA_LINK = 0
+
