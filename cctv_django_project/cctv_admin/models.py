@@ -1,10 +1,18 @@
 from django.db import models
 from pgvector.django import VectorField
 
+
+
 class Camera(models.Model):
+    CAMERA_TYPE = (
+        (0, "Entry"),
+        (1, "Exit"),
+        (2, "Track")
+    )
     link = models.CharField(max_length=500, unique=True)
     name = models.CharField(max_length=200, unique=True)
     enabled = models.BooleanField(default=True)
+    camera_type = models.IntegerField(choices=CAMERA_TYPE, default=2)
     transformation_matrix = VectorField(dimensions=9, null=True, blank=True)
 
     def __str__(self):

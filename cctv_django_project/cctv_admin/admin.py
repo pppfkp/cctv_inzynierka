@@ -2,13 +2,13 @@ from django.contrib import admin
 from .models import Camera, Setting, CalibrationPoint
 
 class CameraAdmin(admin.ModelAdmin):
-    list_display = ('name', 'link', 'enabled')
+    list_display = ('name', 'link', 'enabled', 'camera_type')
     search_fields = ('name', 'link')
-    list_filter = ('enabled',)
+    list_filter = ('enabled', 'camera_type')
 
     fieldsets = (
         (None, {
-            'fields': ('name', 'link', 'enabled')
+            'fields': ('name', 'link', 'enabled', 'camera_type')
         }),
         ('Advanced Options', {
             'fields': ('transformation_matrix',),
