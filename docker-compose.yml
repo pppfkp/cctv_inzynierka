@@ -59,6 +59,25 @@ services:
               count: 1 # alternatively, use `count: all` for all GPUs
               capabilities: [gpu]
 
+  django-detection-service:
+    build:
+      context: ./cctv_detection_django_service
+      dockerfile: Dockerfile            
+    container_name: cctv-detection-django-container
+    env_file: .env
+    network_mode: "host"
+    depends_on:
+      - timescale-db
+    volumes:
+      - ./cctv_detection_django_service:/usr/src/app  # Mount the Django app directory for live updates    
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1 # alternatively, use `count: all` for all GPUs
+              capabilities: [gpu]
+
 volumes:
   pgvector_data:
   timescale_data:
