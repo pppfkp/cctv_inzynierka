@@ -165,3 +165,16 @@ class UserListView(APIView):
         return Response(UserSerializer(users, many=True).data, status=status.HTTP_200_OK)        
 
 
+class AddUserAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            # Check if the username or email already exists
+            if User.objects.filter(username=serializer.validated_data['username']).exists():
+                return Response({"error": "User with this username already exists."}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email=serializer.validated_data['email']).exists():
+                return Response({"error": "User with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            user = serializer.save()
+            return Response({"message": "User added successfully!", "user_id": user.id}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

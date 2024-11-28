@@ -52,6 +52,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'cctv_face_recognition_django_service.middleware.open_access_middleware', # change this to django package later
 ]
 
 ROOT_URLCONF = 'cctv_face_recognition_django_service.urls'
