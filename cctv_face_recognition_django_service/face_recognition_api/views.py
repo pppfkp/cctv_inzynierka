@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
 from .models import FaceEmbedding
-from .serializers import FaceEmbeddingSerializer
+from .serializers import FaceEmbeddingSerializer, UserSerializer
 from pgvector.django import L2Distance
 import numpy as np
 from PIL import Image
@@ -148,5 +148,33 @@ class FindClosestEmbeddingView(APIView):
             return Response(result, status=status.HTTP_200_OK)
         else:
             return Response({"error": "No embeddings found"}, status=status.HTTP_404_NOT_FOUND)
+        
+# Get all users or a single user by ID
+class UserListView(APIView):
+    def get(self, request, user_id=None):
+        # If user_id is provided, return a single user
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Otherwise, return all users
+        users = User.objects.all()
+        return Response(UserSerializer(users, many=True).data, status=status.HTTP_200_OK)        
 
 
+class AddUserAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            # Check if the username or email already exists
+            if User.objects.filter(username=serializer.validated_data['username']).exists():
+                return Response({"error": "User with this username already exists."}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email=serializer.validated_data['email']).exists():
+                return Response({"error": "User with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            user = serializer.save()
+            return Response({"message": "User added successfully!", "user_id": user.id}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
