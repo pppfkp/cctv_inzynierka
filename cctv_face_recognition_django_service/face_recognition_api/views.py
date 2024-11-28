@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
 from .models import FaceEmbedding
-from .serializers import FaceEmbeddingSerializer
+from .serializers import FaceEmbeddingSerializer, UserSerializer
 from pgvector.django import L2Distance
 import numpy as np
 from PIL import Image
@@ -148,5 +148,20 @@ class FindClosestEmbeddingView(APIView):
             return Response(result, status=status.HTTP_200_OK)
         else:
             return Response({"error": "No embeddings found"}, status=status.HTTP_404_NOT_FOUND)
+        
+# Get all users or a single user by ID
+class UserListView(APIView):
+    def get(self, request, user_id=None):
+        # If user_id is provided, return a single user
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Otherwise, return all users
+        users = User.objects.all()
+        return Response(UserSerializer(users, many=True).data, status=status.HTTP_200_OK)        
 
 
