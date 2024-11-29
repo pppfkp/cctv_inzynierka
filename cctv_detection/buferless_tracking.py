@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+from utils.timescaledb_utils import save_to_timescaledb
 import cv2
 from ultralytics import YOLO
 from ultralytics.trackers.bot_sort import BOTSORT, STrack
@@ -12,13 +13,14 @@ import numpy as np
 import time
 from utils.tracking_utils import Args, TrackUpdate, cut_the_frame_from_bbox, detect_face, send_frame_for_recognition
 
+BATCH_SIZE = 100 # batch size for saving in timescaledb
 REQUEST_LINK = "http://localhost:8001/api/find-closest-embedding/" # closest embedding request address
 TRACKING_MODEL = "models/yolo11n.pt" # model for tracking and getting bounding boxes
 FACE_DETECTION_MODEL = "models/yolov10n-face.pt" # model for detecting faces before sending them to recognition
 CAMERA_LINK = 0 # link to the camera (rst or http) when number then it's just a local webcam
 FACE_SIMILARITY_THRESHOLD = 0.7 # treshold for face recognition through api
 CSV_FILE = "detection_log.csv" # csv file with detections (for testing)
-# TRACK_EVERY_N_FRAMES = 2 # if you don't want to perform detection every frame
+TRACK_EVERY_N_FRAMES = 2 # if you don't want to perform detection every frame
 FACE_DETECTION_THRESHOLD = 0.4 # treshold for detection before recognition
 PERSON_DETECTION_THRESHOLD = 0.6 # treshold for detecting a whole person
 FRAME_WIDTH = 1920
@@ -52,7 +54,10 @@ def open_camera(link):
 
 # Dictionary to hold STrack ID and associated face embeddings
 track_user_ids = {}
-last_position = {}  # New dictionary to store last known position
+# New dictionary to store last known position
+last_position = {}  
+# Batch for storing data
+data_batch = []
 
 # csv file with detections
 columns = ["camera_link", 'track_id', "user_id", "date", "time", "x_center", "y_center", "width", "height"]
@@ -173,7 +178,33 @@ async def main():
                 }])
 
                 detection_data.to_csv(CSV_FILE, mode='a', index=False, header=False)
-                print("Saved")    
+                print("Saved")  
+
+                try:
+                    # Simulate detection logic
+                    now = datetime.now()
+                    detection_data = (
+                        CAMERA_LINK,
+                        track.track_id,
+                        user_id,
+                        now.strftime("%Y-%m-%d"),
+                        now.strftime("%H:%M:%S"),
+                        float(track.xywh[0]),
+                        float(track.xywh[1]),
+                        float(track.xywh[2]),
+                        float(track.xywh[3]),
+                    )
+
+                    # Add to batch
+                    data_batch.append(detection_data)
+
+                    # Save data if batch size is met
+                    if len(data_batch) >= BATCH_SIZE:
+                        save_to_timescaledb(data_batch)
+                        data_batch.clear()
+
+                except Exception as e:
+                    print(f"Error in main loop: {e}")  
 
                 
 
@@ -185,6 +216,10 @@ async def main():
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
+            # Final save for remaining data
+            if data_batch:
+                save_to_timescaledb(data_batch)
 
 if __name__ == "__main__":
     asyncio.run(main())
