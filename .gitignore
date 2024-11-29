@@ -278,3 +278,5 @@ pip-selfcheck.json
 # End of https://www.toptal.com/developers/gitignore/api/python,venv,django
 
 facenet_pytorch
+
+cctv_detection/detection_log.csv
