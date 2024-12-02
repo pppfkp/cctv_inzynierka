@@ -49,3 +49,41 @@ def save_to_timescaledb(data_batch):
             cursor.close()
         if conn:
             DB_POOL.putconn(conn)
+
+def create_table_tracking_data():
+    # SQL query to create the table
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS tracking_data (
+        id SERIAL PRIMARY KEY,
+        camera_link TEXT NOT NULL,
+        track_id INT NOT NULL,
+        user_id INT,
+        detection_date DATE NOT NULL,
+        detection_time TIME NOT NULL,
+        x_center FLOAT NOT NULL,
+        y_center FLOAT NOT NULL,
+        width FLOAT NOT NULL,
+        height FLOAT NOT NULL
+    );
+    """
+
+    try:
+        # Connect to the database
+        conn = DB_POOL.getconn()
+        cur = conn.cursor()
+
+        # Execute the query
+        cur.execute(create_table_query)
+
+        # Commit the transaction
+        conn.commit()
+        print("Table 'tracking_data' created successfully (if it didn't already exist).")
+
+    except psycopg2.Error as e:
+        print("An error occurred while creating the table:", e)
+    finally:
+        # Close the cursor and connection
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
