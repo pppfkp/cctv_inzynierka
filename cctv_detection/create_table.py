@@ -1,4 +1,4 @@
-from cctv_detection.utils.timescaledb_utils import create_table_tracking_data
+from utils.timescaledb_utils import create_table_tracking_data
 
 
 create_table_tracking_data()

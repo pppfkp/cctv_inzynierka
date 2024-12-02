@@ -32,7 +32,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    # 'django.contrib.admin',
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -79,11 +79,19 @@ WSGI_APPLICATION = 'cctv_access_tracking_django_service.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'detection'),
+        'USER': os.getenv('DB_USER', 'pppfkp'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'pppfkp123$'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),  # Default to localhost
+        'PORT': os.getenv('DB_PORT', '5432'),        # Default to PostgreSQL port
+    },
+    'timescale': {
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('TIMESCALE_DB_NAME', 'detection'),
         'USER': os.getenv('TIMESCALE_DB_USER', 'pppfkp'),
         'PASSWORD': os.getenv('TIMESCALE_DB_PASSWORD', 'pppfkp123$'),
         'HOST': os.getenv('TIMESCALE_DB_HOST', 'localhost'),  # Default to localhost
-        'PORT': os.getenv('TIMESCALE_DB_PORT', '5432'),        # Default to PostgreSQL port
+        'PORT': os.getenv('TIMESCALE_DB_PORT', '5433'),        # Default to PostgreSQL port
     },
     'sqlite': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -91,6 +99,7 @@ DATABASES = {
     }
 }
 
+DATABASE_ROUTERS = ['cctv_access_tracking_django_service.db_router.AccessTrackingRouter']
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
