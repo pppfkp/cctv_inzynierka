@@ -117,3 +117,17 @@ async def send_frame_for_recognition(frame, session, request_link):
         print(f"Error sending frame: {e}")
         return None, None    
     
+
+# detections
+# CREATE TABLE IF NOT EXISTS tracking_data (
+# 	id SERIAL PRIMARY KEY,
+# 	camera_link TEXT NOT NULL,
+# 	track_id INT NOT NULL,
+# 	user_id INT,
+# 	detection_date DATE NOT NULL,
+# 	detection_time TIME NOT NULL,
+# 	x_center FLOAT NOT NULL,
+# 	y_center FLOAT NOT NULL,
+# 	width FLOAT NOT NULL,
+# 	height FLOAT NOT NULL
+# );    
