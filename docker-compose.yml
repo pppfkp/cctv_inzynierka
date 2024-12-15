@@ -12,6 +12,7 @@ services:
       - "${PGVECTOR_DB_PORT}:5432"
     volumes:
       - pgvector_data:/var/lib/postgresql/data
+      - ./init_pgvector.sql:/docker-entrypoint-initdb.d/init_pgvector.sql # initialze the vector extension
 
   timescale-db:
     image: timescale/timescaledb:latest-pg16
@@ -38,6 +39,7 @@ services:
       - timescale-db
     volumes:
       - ./main_app:/usr/src/app  # Mount the Django app directory for live updates
+      
 
   # django-face-recognition-service:
   #   build:
