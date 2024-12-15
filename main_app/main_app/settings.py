@@ -85,11 +85,11 @@ DATABASES = {
     },
     'timescale': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('PGVECTOR_DB_NAME'),
-        'USER': os.getenv('PGVECTOR_DB_USER'),
-        'PASSWORD': os.getenv('PGVECTOR_DB_PASSWORD'),
-        'HOST': os.getenv('PGVECTOR_DB_HOST'),  
-        'PORT': os.getenv('PGVECTOR_DB_PORT'),        
+        'NAME': os.getenv('TIMESCALE_DB_NAME'),
+        'USER': os.getenv('TIMESCALE_DB_USER'),
+        'PASSWORD': os.getenv('TIMESCALE_DB_PASSWORD'),
+        'HOST': os.getenv('TIMESCALE_DB_HOST'),  
+        'PORT': os.getenv('TIMESCALE_DB_PORT'),        
     },
 }
 
