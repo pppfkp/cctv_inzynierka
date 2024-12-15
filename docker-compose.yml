@@ -26,38 +26,39 @@ services:
       - timescale_data:/var/lib/postgresql/data
       
 
-  django-app:
+  main-app:
     build:
-      context: ./cctv_django_project 
+      context: ./main_app
       dockerfile: Dockerfile            
-    container_name: cctv_django_app
+    container_name: main_app
     env_file: .env
     ports:
       - "8000:8000"
     depends_on:
       - pgvector-db
+      - timescale-db
     volumes:
-      - ./cctv_django_project:/usr/src/app  # Mount the Django app directory for live updates
+      - ./main_app:/usr/src/app  # Mount the Django app directory for live updates
 
-  django-face-recognition-service:
-    build:
-      context: ./cctv_face_recognition_django_service
-      dockerfile: Dockerfile            
-    container_name: cctv-face-recognition-django-container
-    env_file: .env
-    ports:
-      - "8001:8000"
-    depends_on:
-      - pgvector-db
-    volumes:
-      - ./cctv_face_recognition_django_service:/usr/src/app  # Mount the Django app directory for live updates    
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1 # alternatively, use `count: all` for all GPUs
-              capabilities: [gpu]
+  # django-face-recognition-service:
+  #   build:
+  #     context: ./cctv_face_recognition_django_service
+  #     dockerfile: Dockerfile            
+  #   container_name: cctv-face-recognition-django-container
+  #   env_file: .env
+  #   ports:
+  #     - "8001:8000"
+  #   depends_on:
+  #     - pgvector-db
+  #   volumes:
+  #     - ./cctv_face_recognition_django_service:/usr/src/app  # Mount the Django app directory for live updates    
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1 # alternatively, use `count: all` for all GPUs
+  #             capabilities: [gpu]
 
 volumes:
   pgvector_data:
