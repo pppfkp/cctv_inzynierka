@@ -1,5 +1,5 @@
 """
-ASGI config for cctv_face_recognition_django_service project.
+ASGI config for main_app project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cctv_face_recognition_django_service.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main_app.settings')
 
 application = get_asgi_application()
