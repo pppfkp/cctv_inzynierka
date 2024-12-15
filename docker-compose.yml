@@ -31,7 +31,6 @@ services:
       context: ./main_app
       dockerfile: Dockerfile            
     container_name: main_app
-    env_file: .env
     ports:
       - "${MAIN_APP_PORT}:8000"
     depends_on:
