@@ -17,11 +17,11 @@ services:
     image: timescale/timescaledb:latest-pg16
     container_name: timescale-container
     environment:
-      POSTGRES_USER: pppfkp
-      POSTGRES_PASSWORD: pppfkp123$
-      POSTGRES_DB: detection
+      POSTGRES_USER: ${TIMESCALE_DB_USER}
+      POSTGRES_PASSWORD: ${TIMESCALE_DB_PASSWORD}
+      POSTGRES_DB: ${TIMESCALE_DB_NAME}
     ports:
-      - "5433:5432"
+      - "${TIMESCALE_DB_PORT}:5432"
     volumes:
       - timescale_data:/var/lib/postgresql/data
       
@@ -33,7 +33,7 @@ services:
     container_name: main_app
     env_file: .env
     ports:
-      - "8000:8000"
+      - "${MAIN_APP_PORT}:8000"
     depends_on:
       - pgvector-db
       - timescale-db
