@@ -5,11 +5,11 @@ services:
     image: pgvector/pgvector:pg17
     container_name: pgvector-container
     environment:
-      POSTGRES_USER: pppfkp
-      POSTGRES_PASSWORD: pppfkp123$
-      POSTGRES_DB: detection
+      POSTGRES_USER: ${PGVECTOR_DB_USER}
+      POSTGRES_PASSWORD: ${PGVECTOR_DB_PASSWORD}
+      POSTGRES_DB: ${PGVECTOR_DB_NAME}
     ports:
-      - "5432:5432"
+      - "${PGVECTOR_DB_PORT}:5432"
     volumes:
       - pgvector_data:/var/lib/postgresql/data
 
