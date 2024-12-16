@@ -10,7 +10,7 @@ class FaceEmbedding(models.Model):
     embedding = VectorField(dimensions=512, null=True, blank=True)
 
     def __str__(self):
-        return f"FaceEmbedding for {self.user}: {self.embedding}"
+        return f"FaceEmbedding for {self.user}"
     
 class Recognition(TimescaleModel):
     user_id = models.IntegerField(null=True)
