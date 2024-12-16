@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from face_recognition.views import extract_embedding_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),
 ]

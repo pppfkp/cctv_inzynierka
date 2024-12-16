@@ -8,11 +8,13 @@ def extract_embedding(photo):
         # Get models on the specified device
         mtcnn, resnet = get_models()
         
-        # Open the image and ensure it's in RGB format
-        image = Image.open(photo).convert('RGB')
+        # Check if the input is already a PIL image
+        if not isinstance(photo, Image.Image):
+            # Open the image and ensure it's in RGB format
+            photo = Image.open(photo).convert('RGB')
         
         # Perform face detection and move the detected face tensor to the correct device
-        cropped_face = mtcnn(image)
+        cropped_face = mtcnn(photo)
         if cropped_face is None:
             print("No face detected")
             return None
