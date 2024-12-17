@@ -129,9 +129,9 @@ async def main():
 
                         if face is not None:
                             face_cropped = cut_the_frame_from_bbox(cropped_frame, face.xywh[0].cpu().numpy())
-                            distance, detected_id = await send_frame_for_recognition(face_cropped, session, REQUEST_LINK)
+                            distance, detected_id, user_inside = await send_frame_for_recognition(face_cropped, session, REQUEST_LINK)
 
-                            if distance is not None and distance < FACE_SIMILARITY_THRESHOLD:
+                            if distance is not None and distance < FACE_SIMILARITY_THRESHOLD and user_inside:
                                 user_id = detected_id
                                 track_user_ids[track.track_id] = user_id
                     else:
