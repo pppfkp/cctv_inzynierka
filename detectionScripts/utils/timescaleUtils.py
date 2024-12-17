@@ -90,6 +90,29 @@ def save_entry_to_db(entry):
         if conn:
             DB_POOL.putconn(conn)
 
+def save_exit_to_db(entry):
+    try:
+        conn = DB_POOL.getconn()
+        cursor = conn.cursor()
+
+        # Updated INSERT query to match the Detection model with track_id
+        insert_query = """
+        INSERT INTO stats_exit (
+            time, user_id
+        ) VALUES (%s, %s)
+        """
+
+        cursor.execute(insert_query, entry)
+        conn.commit()
+        print(f"saved exit to db")
+    except Exception as e:
+        print(f"Error saving data to DB: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            DB_POOL.putconn(conn)
+
 def set_user_inside_status(user_id, status):
     """
     Update the is_inside field for a user's TrackingSubject to True or False.
