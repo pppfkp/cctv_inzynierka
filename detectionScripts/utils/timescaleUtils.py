@@ -8,10 +8,10 @@ load_dotenv(dotenv_path='../.env')
 # Database connection settings from .env
 DB_SETTINGS = {
     "host": "localhost",
-    "port": int(os.getenv("TIMESCALE_DB_PORT")),
-    "dbname": os.getenv("TIMESCALE_DB_NAME"),
-    "user": os.getenv("TIMESCALE_DB_USER"),
-    "password": os.getenv("TIMESCALE_DB_PASSWORD"),
+    "port": int(os.getenv("PGVECTOR_DB_PORT")),
+    "dbname": os.getenv("PGVECTOR_DB_NAME"),
+    "user": os.getenv("PGVECTOR_DB_USER"),
+    "password": os.getenv("PGVECTOR_DB_PASSWORD"),
 }
 
 # Create a connection pool
@@ -24,26 +24,35 @@ DB_POOL = psycopg2.pool.SimpleConnectionPool(
 
 def save_to_timescaledb(data_batch):
     """
-    Save a batch of tracking data to TimescaleDB.
+    Save a batch of detection data to the database.
 
     Args:
-        data_batch (list): A list of tuples containing tracking data to insert.
+        data_batch (list): A list of tuples containing detection data to insert.
+                           Each tuple should contain:
+                           (user_id, camera_id, track_id, time, x_center, y_center, width, height)
     """
     try:
         conn = DB_POOL.getconn()
         cursor = conn.cursor()
 
+        # Updated INSERT query to match the Detection model with track_id
         insert_query = """
-        INSERT INTO tracking_data (
-            camera_link, track_id, user_id, detection_date, detection_time,
-            x_center, y_center, width, height
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO stats_detection (
+            user_id, camera_id, track_id, time, xywh
+        ) VALUES (%s, %s, %s, %s, array[%s, %s, %s, %s])
         """
-        cursor.executemany(insert_query, data_batch)
+
+        # Transform data_batch to match the query's format
+        transformed_batch = [
+            (user_id, camera_id, track_id, time, x_center, y_center, width, height)
+            for user_id, camera_id, track_id, time, x_center, y_center, width, height in data_batch
+        ]
+
+        cursor.executemany(insert_query, transformed_batch)
         conn.commit()
-        print(f"{len(data_batch)} rows saved to TimescaleDB")
+        print(f"{len(data_batch)} rows saved to DB")
     except Exception as e:
-        print(f"Error saving data to TimescaleDB: {e}")
+        print(f"Error saving data to DB: {e}")
     finally:
         if cursor:
             cursor.close()

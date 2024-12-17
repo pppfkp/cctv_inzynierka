@@ -154,11 +154,10 @@ async def main():
 
                     try:
                         detection_data = (
-                            CAMERA_LINK,
-                            track.track_id,
                             user_id,
-                            now.strftime("%Y-%m-%d"),
-                            now.strftime("%H:%M:%S"),
+                            1,
+                            track.track_id,
+                            now.strftime("%Y-%m-%d %H:%M:%S"),
                             float(track.xywh[0]),
                             float(track.xywh[1]),
                             float(track.xywh[2]),

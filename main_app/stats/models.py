@@ -13,7 +13,8 @@ class Exit(models.Model):
     time = models.DateTimeField()
 
 class Detection(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='detections')
-    camera_id = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='detections')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='detections', null=True)
+    camera = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='detections')
+    track_id = models.BigIntegerField()
     time = models.DateTimeField()
     xywh = VectorField(dimensions=4, null=False, blank=False)
