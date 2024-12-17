@@ -3,7 +3,13 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from PIL import Image
 from io import BytesIO
+
+from .models import FaceEmbedding
 from .utils import extract_embedding
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from pgvector.django import L2Distance
 
 def extract_embedding_view(request):
     if request.method == "POST":
@@ -32,3 +38,33 @@ def extract_embedding_view(request):
 
     # Render the initial template
     return render(request, "extract_embedding.html")
+
+class FindClosestEmbeddingView(APIView):
+    def post(self, request):
+        # get the photo
+        photo = request.FILES.get('file') 
+        if not photo:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # extract the embedding from the photo
+        embedding = extract_embedding(photo)  # Implement this method
+
+        if embedding is None:
+            return Response({"error": "Could not extract embedding from photo"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # find the closest match taking advantage of the pg-vector built-in l2 distance
+        closest_embedding = FaceEmbedding.objects.annotate(
+            distance=L2Distance("embedding", embedding)
+        ).order_by('distance').first()
+
+        if closest_embedding:
+            # Serialize the result
+            result = {
+                "user_id": closest_embedding.user.id,
+                "user_name": closest_embedding.user.username,
+                "embedding_id": closest_embedding.id,
+                "distance": closest_embedding.distance,
+            }
+            return Response(result, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "No embeddings found"}, status=status.HTTP_404_NOT_FOUND)
