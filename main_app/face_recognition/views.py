@@ -62,6 +62,7 @@ class FindClosestEmbeddingView(APIView):
             result = {
                 "user_id": closest_embedding.user.id,
                 "user_name": closest_embedding.user.username,
+                "user_inside": closest_embedding.user.trackingsubject.is_inside,
                 "embedding_id": closest_embedding.id,
                 "distance": closest_embedding.distance,
             }

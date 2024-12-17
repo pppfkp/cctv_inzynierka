@@ -62,14 +62,14 @@ def detect_face(img, face_model, threshold):
             largest_face = box
 
     if largest_face:
-        print(f"Largest face box: {largest_face}")
+        # print(f"Largest face box: {largest_face}")
         return largest_face
     else:
         print("No face detected above the threshold.")
         return None          
 
 
-def send_frame_for_recognition(frame, request_link):
+def send_frame_for_recognition_sync(frame, request_link):
     try:
         # Encode the frame as JPEG
         _, img_encoded = cv2.imencode('.jpg', frame)
@@ -111,9 +111,10 @@ async def send_frame_for_recognition(frame, session, request_link):
             data = await response.json()
             distance = data.get("distance", None)
             user_id = data.get("user_id", None)
+            user_inside = data.get("user_inside")
             print(f"face recognition distance: {distance} user_id: {user_id}")
-            return distance, user_id
+            return distance, user_id, user_inside
     except Exception as e:
         print(f"Error sending frame: {e}")
-        return None, None    
+        return None, None, None    
     
