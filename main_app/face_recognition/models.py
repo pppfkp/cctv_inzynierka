@@ -1,19 +1,17 @@
 from django.db import models
 from pgvector.django import VectorField
 from django.contrib.auth.models import User 
-from timescale.db.models.models import TimescaleModel
-from timescale.db.models.fields import TimescaleDateTimeField
 
 # Create your models here.
 class FaceEmbedding(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='face_embeddings')
-    embedding = VectorField(dimensions=512, null=True, blank=True)
+    embedding = VectorField(dimensions=512, null=False, blank=False)
 
     def __str__(self):
         return f"FaceEmbedding for {self.user}"
     
-class Recognition(TimescaleModel):
-    user_id = models.IntegerField(null=True)
+class Recognition(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recognitions')
     distance = models.FloatField()
-    time = TimescaleDateTimeField(interval = "1 second")
+    time = models.DateTimeField()
 

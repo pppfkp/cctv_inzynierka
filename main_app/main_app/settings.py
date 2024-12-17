@@ -19,11 +19,6 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DATABASE_ROUTERS = [
-    "face_recognition.router.TimescaleRouter"
-]
-
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -46,7 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'management',
-    'face_recognition'
+    'face_recognition',
+    'stats'
 ]
 
 MIDDLEWARE = [
@@ -91,15 +87,7 @@ DATABASES = {
         'PASSWORD': os.getenv('PGVECTOR_DB_PASSWORD'),
         'HOST': os.getenv('PGVECTOR_DB_HOST'),  
         'PORT': os.getenv('PGVECTOR_DB_PORT'),        
-    },
-    'timescale': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('TIMESCALE_DB_NAME'),
-        'USER': os.getenv('TIMESCALE_DB_USER'),
-        'PASSWORD': os.getenv('TIMESCALE_DB_PASSWORD'),
-        'HOST': os.getenv('TIMESCALE_DB_HOST'),  
-        'PORT': os.getenv('TIMESCALE_DB_PORT'),        
-    },
+    }
 }
 
 
