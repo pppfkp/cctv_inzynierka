@@ -1,5 +1,0 @@
-.git/
-.venv/
-Dockerfile.cpu
-Dockerfile
-.dockerignore
