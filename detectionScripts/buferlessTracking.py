@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import aiohttp
 from utils.timescaleUtils import save_to_timescaledb
@@ -25,6 +26,11 @@ PERSON_DETECTION_THRESHOLD = 0.6  # threshold for detecting a whole person
 FRAME_WIDTH = 1920
 FRAME_HEIGHT = 1080
 FPS = 10
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Run detection and tracking on a specific camera.")
+    parser.add_argument("--camera_link", type=str, required=True, help="Link to the camera (rstp, http, or local webcam index)")
+    return parser.parse_args()
 
 # Draw bounding boxes and tracking data
 def visualize_tracks(frame, tracks):
@@ -139,7 +145,7 @@ async def main():
 
                     now = datetime.now()
                     detection_data = pd.DataFrame([{
-                        "camera_link": CAMERA_LINK,
+                        "camera_link": CAMERA_LINK + 1,
                         'track_id': track.track_id,
                         "user_id": user_id,
                         "date": now.strftime("%Y-%m-%d"),
@@ -150,12 +156,12 @@ async def main():
                         "height": float(track.xywh[3]),
                     }])
 
-                    detection_data.to_csv(CSV_FILE, mode='a', index=False, header=False)
+                    # detection_data.to_csv(CSV_FILE, mode='a', index=False, header=False)
 
                     try:
                         detection_data = (
                             user_id,
-                            1,
+                            CAMERA_LINK + 1, # JUST FOR TESTING
                             track.track_id,
                             now.strftime("%Y-%m-%d %H:%M:%S"),
                             float(track.xywh[0]),
@@ -167,7 +173,7 @@ async def main():
                         data_batch.append(detection_data)
 
                         if len(data_batch) >= BATCH_SIZE:
-                            # save_to_timescaledb(data_batch)
+                            save_to_timescaledb(data_batch)
                             data_batch.clear()
 
                     except Exception as e:
@@ -183,4 +189,7 @@ async def main():
             save_to_timescaledb(data_batch)
 
 if __name__ == "__main__":
+    args = parse_arguments()
+    CAMERA_LINK = int(args.camera_link)
+    print(CAMERA_LINK)
     asyncio.run(main())
