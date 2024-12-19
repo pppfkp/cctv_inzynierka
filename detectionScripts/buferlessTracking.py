@@ -27,6 +27,42 @@ FRAME_WIDTH = 1920
 FRAME_HEIGHT = 1080
 FPS = 10
 
+from threading import Thread, Lock
+import cv2
+
+class VideoStream:
+    def __init__(self, link):
+        self.stream = cv2.VideoCapture(link)
+        self.lock = Lock()
+        self.latest_frame = None
+        self.stopped = False
+
+        if self.stream.isOpened():
+            self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffering
+            self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+            self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+
+    def start(self):
+        Thread(target=self.update, args=(), daemon=True).start()
+        return self
+
+    def update(self):
+        while not self.stopped:
+            if self.stream.isOpened():
+                ret, frame = self.stream.read()
+                if ret:
+                    with self.lock:
+                        self.latest_frame = frame
+
+    def read(self):
+        with self.lock:
+            return self.latest_frame
+
+    def stop(self):
+        self.stopped = True
+        self.stream.release()
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run detection and tracking on a specific camera.")
     parser.add_argument("--camera_link", type=str, required=True, help="Link to the camera (rstp, http, or local webcam index)")
@@ -49,6 +85,12 @@ def open_camera(link):
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
     return cap
+
+    
+def open_camera(link):
+    video_stream = VideoStream(link)
+    video_stream.start()
+    return video_stream
 
 
 # Dictionary to hold STrack ID and associated face embeddings
@@ -77,19 +119,10 @@ async def main():
 
     async with aiohttp.ClientSession() as session:
         while True:
-            if not cap.isOpened():
-                print("Error: Unable to open camera. Retrying in 5 seconds...")
-                time.sleep(5)  # Wait before retrying
-                cap = open_camera(CAMERA_LINK)  # Attempt to reconnect
-                continue
-
-            ret, frame = cap.read()
-
-            if not ret:
-                print("Error: Unable to retrieve frame. Retrying connection...")
-                cap.release()
-                time.sleep(2)  # Small delay before retrying
-                cap = open_camera(CAMERA_LINK)  # Attempt to reconnect
+            frame = cap.read()
+            if frame is None:
+                print("Waiting for frames...")
+                time.sleep(0.1)  # Add a small delay if no frame is available
                 continue
 
             current_time = time.time()
@@ -145,7 +178,7 @@ async def main():
 
                     now = datetime.now()
                     detection_data = pd.DataFrame([{
-                        "camera_link": CAMERA_LINK + 1,
+                        "camera_link": 1,
                         'track_id': track.track_id,
                         "user_id": user_id,
                         "date": now.strftime("%Y-%m-%d"),
@@ -190,6 +223,6 @@ async def main():
 
 if __name__ == "__main__":
     args = parse_arguments()
-    CAMERA_LINK = int(args.camera_link)
+    CAMERA_LINK = args.camera_link
     print(CAMERA_LINK)
     asyncio.run(main())
