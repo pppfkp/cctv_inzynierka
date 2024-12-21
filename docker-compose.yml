@@ -5,48 +5,26 @@ services:
     image: pgvector/pgvector:pg17
     container_name: pgvector-container
     environment:
-      POSTGRES_USER: ${PGVECTOR_DB_USER}
-      POSTGRES_PASSWORD: ${PGVECTOR_DB_PASSWORD}
-      POSTGRES_DB: ${PGVECTOR_DB_NAME}
+      POSTGRES_USER: pppfkp
+      POSTGRES_PASSWORD: pppfkp123$
+      POSTGRES_DB: detection
     ports:
-      - "${PGVECTOR_DB_PORT}:5432"
+      - "5432:5432"
     volumes:
       - pgvector_data:/var/lib/postgresql/data
-      - ./init_pgvector.sql:/docker-entrypoint-initdb.d/init_pgvector.sql # initialze the vector extension
 
-  main-app:
+  django-app:
     build:
-      context: ./main_app
+      context: ./cctv_django_project 
       dockerfile: Dockerfile            
-    container_name: main_app
+    container_name: cctv_django_app
+    env_file: .env
     ports:
-      - "${MAIN_APP_PORT}:8000"
+      - "8000:8000"
     depends_on:
       - pgvector-db
     volumes:
-      - ./main_app:/usr/src/app  # Mount the Django app directory for live updates
-      
-
-  # django-face-recognition-service:
-  #   build:
-  #     context: ./cctv_face_recognition_django_service
-  #     dockerfile: Dockerfile            
-  #   container_name: cctv-face-recognition-django-container
-  #   env_file: .env
-  #   ports:
-  #     - "8001:8000"
-  #   depends_on:
-  #     - pgvector-db
-  #   volumes:
-  #     - ./cctv_face_recognition_django_service:/usr/src/app  # Mount the Django app directory for live updates    
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1 # alternatively, use `count: all` for all GPUs
-  #             capabilities: [gpu]
+      - ./cctv_django_project:/usr/src/app  # Mount the Django app directory for live updates
 
 volumes:
   pgvector_data:
-  timescale_data:
