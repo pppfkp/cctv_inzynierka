@@ -24,7 +24,7 @@ class Camera(models.Model):
         return f"{self.name}: {self.link}"
     
 class Setting(models.Model):
-    setting_key = models.CharField(max_length=100, unique=True)
+    key = models.CharField(max_length=100, unique=True)
     value = models.TextField()
     description = models.TextField(blank=True, null=True)
     TYPE_CHOICES = [
