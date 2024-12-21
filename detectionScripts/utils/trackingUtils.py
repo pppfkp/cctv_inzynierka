@@ -117,4 +117,3 @@ async def send_frame_for_recognition(frame, session, request_link):
     except Exception as e:
         print(f"Error sending frame: {e}")
         return None, None, None    
-    

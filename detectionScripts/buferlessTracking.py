@@ -232,7 +232,9 @@ async def main():
 if __name__ == "__main__":
     # python buferlessTracking.py --camera_link rtsp://192.168.0.150 --camera_id 1 --fps_tracking 10 --batch_size 100 --face_detection_model yolov10n-face.pt --person_detection_model yolo11n.pt --face_similarity_treshold 0.7 --face_detection_treshold 0.4 --person_detection_treshold 0.6
     args = parse_arguments()
-    CAMERA_LINK = args.camera_link
+    
+    CAMERA_LINK = args.camera_link    
+    print(f"CAMERA LINK: {CAMERA_LINK}")
     BATCH_SIZE = args.batch_size
     TRACKING_MODEL = args.person_detection_model
     FACE_DETECTION_MODEL = args.face_detection_model
