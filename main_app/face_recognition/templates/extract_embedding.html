@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Embedding</title>
+    <style>
+        video, canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        #capture, #calculate {
+            display: block;
+            margin: 10px auto;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Camera Embedding Tool</h1>
+    <video id="video" autoplay></video>
+    <canvas id="canvas" style="display: none;"></canvas>
+    <button id="capture">Capture Photo</button>
+    <form id="embedding-form" method="POST" enctype="multipart/form-data" style="text-align: center;">
+        {% csrf_token %}
+        <input type="hidden" name="image" id="image-data">
+        <button type="submit" id="calculate" disabled>Calculate Embedding</button>
+    </form>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureButton = document.getElementById('capture');
+        const calculateButton = document.getElementById('calculate');
+        const imageDataInput = document.getElementById('image-data');
+
+        // Access the camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => console.error("Error accessing the camera: ", err));
+
+        // Capture the photo
+        captureButton.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert canvas image to Base64
+            const dataURL = canvas.toDataURL('image/jpeg');
+            imageDataInput.value = dataURL;
+
+            // Enable the calculate button
+            calculateButton.disabled = false;
+             // Pause the video to "freeze" the frame
+            video.pause();
+        });
+    </script>
+
+    <div style="text-align: center;">
+        {% if embedding %}
+            <h3>Embedding:</h3>
+            <p>{{ embedding }}</p>
+        {% elif error %}
+            <h3 style="color: red;">Error:</h3>
+            <p>{{ error }}</p>
+        {% endif %}
+    </div>
+
+</body>
+</html>
