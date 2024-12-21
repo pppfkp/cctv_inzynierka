@@ -3,14 +3,14 @@ import aiohttp
 import cv2
 import requests
 
-
+# config values for BOTSORT
 class Args:
     def __init__(self):
-        self.track_high_thresh = 0.5  # Example value
-        self.track_low_thresh = 0.1   # Example value
-        self.new_track_thresh = 0.3   # Example value
-        self.track_buffer = 30        # Example value
-        self.match_thresh = 0.8       # Example value
+        self.track_high_thresh = 0.5  
+        self.track_low_thresh = 0.1   
+        self.new_track_thresh = 0.3   
+        self.track_buffer = 30        
+        self.match_thresh = 0.8       
         self.proximity_thresh = 0.8
         self.appearance_thresh = 0.8
         self.with_reid = True
@@ -117,4 +117,3 @@ async def send_frame_for_recognition(frame, session, request_link):
     except Exception as e:
         print(f"Error sending frame: {e}")
         return None, None, None    
-    

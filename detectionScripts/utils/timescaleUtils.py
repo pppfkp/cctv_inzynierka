@@ -142,3 +142,89 @@ def set_user_inside_status(user_id, status):
             cursor.close()
         if conn:
             DB_POOL.putconn(conn)
+
+def get_all_cameras():
+    """
+    Fetch all camera details from the database.
+
+    Returns:
+        list: A list of dictionaries containing camera details (id, link, name, enabled, transformation_matrix).
+              Each dictionary corresponds to a row in the management_camera table.
+    """
+    try:
+        conn = DB_POOL.getconn()
+        cursor = conn.cursor()
+
+        # Query to fetch camera details
+        select_query = """
+        SELECT id, link, name, enabled, transformation_matrix
+        FROM public.management_camera;
+        """
+
+        cursor.execute(select_query)
+        cameras = cursor.fetchall()
+
+        # Convert result into a list of dictionaries
+        camera_details = [
+            {
+                "id": camera[0],
+                "link": camera[1],
+                "name": camera[2],
+                "enabled": camera[3],
+                "transformation_matrix": camera[4]
+            }
+            for camera in cameras
+        ]
+
+        return camera_details
+    except Exception as e:
+        print(f"Error fetching camera details from DB: {e}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            DB_POOL.putconn(conn)
+
+def get_all_settings():
+    """
+    Fetch all settings from the database.
+
+    Returns:
+        list: A list of dictionaries containing settings details (id, key, value, description, data_type).
+              Each dictionary corresponds to a row in the management_setting table.
+    """
+    try:
+        conn = DB_POOL.getconn()
+        cursor = conn.cursor()
+
+        # Query to fetch settings details
+        select_query = """
+        SELECT id, key, value, description, data_type
+        FROM public.management_setting;
+        """
+
+        cursor.execute(select_query)
+        settings = cursor.fetchall()
+
+        # Convert result into a list of dictionaries
+        settings_details = [
+            {
+                "id": setting[0],
+                "key": setting[1],
+                "value": setting[2],
+                "description": setting[3],
+                "data_type": setting[4]
+            }
+            for setting in settings
+        ]
+
+        return settings_details
+    except Exception as e:
+        print(f"Error fetching settings details from DB: {e}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            DB_POOL.putconn(conn)

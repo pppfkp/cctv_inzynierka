@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import aiohttp
 from utils.timescaleUtils import save_to_timescaledb
@@ -12,11 +13,30 @@ import torch
 import numpy as np
 import time
 from utils.trackingUtils import Args, TrackUpdate, cut_the_frame_from_bbox, detect_face, send_frame_for_recognition
+from threading import Thread, Lock
 
-BATCH_SIZE = 100  # batch size for saving in timescaledb
+# python buferlessTracking.py --camera_link rtsp://192.168.0.150 --camera_id 1 --fps_tracking 10 --batch_size 100 --face_detection_model yolov10n-face.pt --person_detection_model yolo11n.pt --face_similarity_treshold 0.7 --face_detection_treshold 0.4 --person_detection_treshold 0.6
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Run detection and tracking on a specific camera.")
+    parser.add_argument("--camera_link", type=str, required=True, help="Link to the camera (rstp, http, or local webcam index)")
+    parser.add_argument("--camera_id", type=int, required=True, help="ID for the camera")
+    parser.add_argument("--fps_tracking", type=int, required=True, help="FPS for performing tracking")
+    parser.add_argument("--batch_size", type=int, required=True, help="Batch size of detections for saving in the database")
+    parser.add_argument("--face_detection_model", type=str, required=True, help="Face detection model name")
+    parser.add_argument("--person_detection_model", type=str, required=True, help="Person detection model name")
+    parser.add_argument("--face_similarity_treshold", type=float, required=True, help="Face similarity treshold")
+    parser.add_argument("--face_detection_treshold", type=float, required=True, help="Face detection treshold")
+    parser.add_argument("--person_detection_treshold", type=float, required=True, help="Person detection treshold")
+
+    return parser.parse_args()
+
+# Example values that will be later overriten by values from the args
+BATCH_SIZE = 100  # batch size for saving in db
 REQUEST_LINK = "http://localhost:8000/face_recognition/api/recognize/"  # closest embedding request address
 TRACKING_MODEL = "models/yolo11n.pt"  # model for tracking and getting bounding boxes
 FACE_DETECTION_MODEL = "models/yolov10n-face.pt"  # model for detecting faces before sending them to recognition
+CAMERA_ID = 0
 CAMERA_LINK = 0  # link to the camera (rst or http) when number then it's just a local webcam
 FACE_SIMILARITY_THRESHOLD = 0.7  # threshold for face recognition through API
 CSV_FILE = "detection_log.csv"  # CSV file with detections (for testing)
@@ -25,6 +45,39 @@ PERSON_DETECTION_THRESHOLD = 0.6  # threshold for detecting a whole person
 FRAME_WIDTH = 1920
 FRAME_HEIGHT = 1080
 FPS = 10
+SAVE_TO_CSV_FILE = False
+
+class VideoStream:
+    def __init__(self, link):
+        self.stream = cv2.VideoCapture(link)
+        self.lock = Lock()
+        self.latest_frame = None
+        self.stopped = False
+
+        if self.stream.isOpened():
+            self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffering
+            self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+            self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+
+    def start(self):
+        Thread(target=self.update, args=(), daemon=True).start()
+        return self
+
+    def update(self):
+        while not self.stopped:
+            if self.stream.isOpened():
+                ret, frame = self.stream.read()
+                if ret:
+                    with self.lock:
+                        self.latest_frame = frame
+
+    def read(self):
+        with self.lock:
+            return self.latest_frame
+
+    def stop(self):
+        self.stopped = True
+        self.stream.release()
 
 # Draw bounding boxes and tracking data
 def visualize_tracks(frame, tracks):
@@ -35,15 +88,11 @@ def visualize_tracks(frame, tracks):
         cv2.putText(frame, f"TRACK_ID: {track_id} USER_ID: {track_user_ids.get(track_id)}", 
                     (x - int(w / 2), y - int(h / 2) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     cv2.imshow("Tracking", frame)
-
+   
 def open_camera(link):
-    cap = cv2.VideoCapture(link)
-    if cap.isOpened():
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffering
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
-    return cap
-
+    video_stream = VideoStream(link)
+    video_stream.start()
+    return video_stream
 
 # Dictionary to hold STrack ID and associated face embeddings
 track_user_ids = {}
@@ -55,15 +104,17 @@ data_batch = []
 # CSV file with detections
 columns = ["camera_link", 'track_id', "user_id", "date", "time", "x_center", "y_center", "width", "height"]
 pd.DataFrame(columns=columns).to_csv(CSV_FILE, index=False, mode='w')
-args = Args()
+botsort_args = Args()
 
-# Load the YOLO model
-tracking_model = YOLO(TRACKING_MODEL, verbose=False).to('cuda')
-face_model = YOLO(FACE_DETECTION_MODEL, verbose=False).to('cuda')
-print(f"------------------------------------tracking model: {tracking_model.device}-----------------------------------------")
-tracker = BOTSORT(args)  # Initialize the BOTSORT tracker
+
 
 async def main():
+    # Load the YOLO model
+    tracking_model = YOLO(f"models/{TRACKING_MODEL}", verbose=False).to('cuda')
+    face_model = YOLO(f"models/{FACE_DETECTION_MODEL}", verbose=False).to('cuda')
+    print(f"------------------------------------tracking model: {tracking_model.device}-----------------------------------------")
+    tracker = BOTSORT(botsort_args)  # Initialize the BOTSORT tracker
+
     cap = open_camera(CAMERA_LINK)
     last_save_time = time.time()  # Track the last time data was saved
     fps = FPS  # Target FPS for saving data
@@ -71,19 +122,10 @@ async def main():
 
     async with aiohttp.ClientSession() as session:
         while True:
-            if not cap.isOpened():
-                print("Error: Unable to open camera. Retrying in 5 seconds...")
-                time.sleep(5)  # Wait before retrying
-                cap = open_camera(CAMERA_LINK)  # Attempt to reconnect
-                continue
-
-            ret, frame = cap.read()
-
-            if not ret:
-                print("Error: Unable to retrieve frame. Retrying connection...")
-                cap.release()
-                time.sleep(2)  # Small delay before retrying
-                cap = open_camera(CAMERA_LINK)  # Attempt to reconnect
+            frame = cap.read()
+            if frame is None:
+                print("Waiting for frames...")
+                time.sleep(0.1)  # Add a small delay if no frame is available
                 continue
 
             current_time = time.time()
@@ -139,35 +181,40 @@ async def main():
 
                     now = datetime.now()
                     detection_data = pd.DataFrame([{
-                        "camera_link": CAMERA_LINK,
-                        'track_id': track.track_id,
-                        "user_id": user_id,
-                        "date": now.strftime("%Y-%m-%d"),
-                        "time": now.strftime("%H:%M:%S"),
-                        "x_center": float(track.xywh[0]),
-                        "y_center": float(track.xywh[1]),
-                        "width": float(track.xywh[2]),
-                        "height": float(track.xywh[3]),
-                    }])
-
-                    detection_data.to_csv(CSV_FILE, mode='a', index=False, header=False)
-
-                    try:
-                        detection_data = (
                             user_id,
-                            1,
+                            CAMERA_ID, 
                             track.track_id,
                             now.strftime("%Y-%m-%d %H:%M:%S"),
                             float(track.xywh[0]),
                             float(track.xywh[1]),
                             float(track.xywh[2]),
                             float(track.xywh[3]),
+                    }])
+
+                    if SAVE_TO_CSV_FILE:
+                        detection_data.to_csv(CSV_FILE, mode='a', index=False, header=False)
+
+                    try:
+                        # Create detection data as a tuple in the exact order of the database schema
+                        detection_data = (
+                            user_id,                # Matches the first column: user_id
+                            CAMERA_ID,              # Matches the second column: camera_id
+                            track.track_id,         # Matches the third column: track_id
+                            now.strftime("%Y-%m-%d %H:%M:%S"),  # Matches the fourth column: time
+                            float(track.xywh[0]),   # Matches the fifth column: x_center
+                            float(track.xywh[1]),   # Matches the sixth column: y_center
+                            float(track.xywh[2]),   # Matches the seventh column: width
+                            float(track.xywh[3]),   # Matches the eighth column: height
                         )
+
+
+                        # Debug print to confirm order
+                        print(f"Tuple for insertion: {detection_data}")
 
                         data_batch.append(detection_data)
 
                         if len(data_batch) >= BATCH_SIZE:
-                            # save_to_timescaledb(data_batch)
+                            save_to_timescaledb(data_batch)
                             data_batch.clear()
 
                     except Exception as e:
@@ -183,4 +230,19 @@ async def main():
             save_to_timescaledb(data_batch)
 
 if __name__ == "__main__":
+    # python buferlessTracking.py --camera_link rtsp://192.168.0.150 --camera_id 1 --fps_tracking 10 --batch_size 100 --face_detection_model yolov10n-face.pt --person_detection_model yolo11n.pt --face_similarity_treshold 0.7 --face_detection_treshold 0.4 --person_detection_treshold 0.6
+    args = parse_arguments()
+    
+    CAMERA_LINK = args.camera_link    
+    print(f"CAMERA LINK: {CAMERA_LINK}")
+    BATCH_SIZE = args.batch_size
+    TRACKING_MODEL = args.person_detection_model
+    FACE_DETECTION_MODEL = args.face_detection_model
+    CAMERA_ID = args.camera_id
+    CAMERA_LINK = args.camera_link
+    FACE_SIMILARITY_THRESHOLD = args.face_similarity_treshold
+    FACE_DETECTION_THRESHOLD = args.face_detection_treshold
+    PERSON_DETECTION_THRESHOLD = args.person_detection_treshold
+    FPS = args.fps_tracking
+
     asyncio.run(main())
