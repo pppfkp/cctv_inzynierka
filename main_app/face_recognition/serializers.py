@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 class FaceEmbeddingSerializer(serializers.ModelSerializer):
     class Meta:
         model = FaceEmbedding
-        fields = ['id', 'user', 'embedding',]
+        fields = ['id', 'user', 'embedding', 'photo']
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

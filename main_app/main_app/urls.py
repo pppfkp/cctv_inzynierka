@@ -16,14 +16,21 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from face_recognition.views import extract_embedding_view, FindClosestEmbeddingView
+from face_recognition.views import FaceEmbeddingCreateView, FaceEmbeddingDetailView, UserEmbeddingsListView, extract_embedding_view, FindClosestEmbeddingView
 from django.conf import settings
 from django.conf.urls.static import static
+
+from management.views import login_view, logout_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),
-    path('face_recognition/api/recognize/',FindClosestEmbeddingView.as_view())
+    path('face_recognition/api/recognize/',FindClosestEmbeddingView.as_view()),
+    path('users/<int:user_id>/embeddings/', UserEmbeddingsListView.as_view(), name='user-embeddings'),
+    path('users/<int:user_id>/embeddings/add/', FaceEmbeddingCreateView.as_view(), name='add-embedding'),
+    path('embeddings/<int:pk>/', FaceEmbeddingDetailView.as_view(), name='embedding-detail'),
+    path('api/login/', login_view, name='login'),
+    path('api/logout/', logout_view, name='logout'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

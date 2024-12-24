@@ -3,6 +3,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from PIL import Image
 from io import BytesIO
+from rest_framework import generics, permissions
 
 from .models import FaceEmbedding
 from .utils import extract_embedding
@@ -10,6 +11,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from pgvector.django import L2Distance
+from .serializers import FaceEmbeddingSerializer
+
+# Custom permission: Only users in the "management" group can access
+class IsManagementGroup(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.groups.filter(name="management").exists()
 
 def extract_embedding_view(request):
     if request.method == "POST":
@@ -69,3 +76,27 @@ class FindClosestEmbeddingView(APIView):
             return Response(result, status=status.HTTP_200_OK)
         else:
             return Response({"error": "No embeddings found"}, status=status.HTTP_404_NOT_FOUND)
+        
+# List all embeddings for a given user
+class UserEmbeddingsListView(generics.ListAPIView):
+    serializer_class = FaceEmbeddingSerializer
+    permission_classes = [permissions.IsAuthenticated, IsManagementGroup]
+
+    def get_queryset(self):
+        user_id = self.kwargs.get('user_id')  # User ID passed in the URL
+        return FaceEmbedding.objects.filter(user__id=user_id)
+    
+# Retrieve, update, or delete a particular embedding
+class FaceEmbeddingDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = FaceEmbedding.objects.all()
+    serializer_class = FaceEmbeddingSerializer
+    permission_classes = [permissions.IsAuthenticated, IsManagementGroup]
+
+# Create a new embedding for a given user
+class FaceEmbeddingCreateView(generics.CreateAPIView):
+    serializer_class = FaceEmbeddingSerializer
+    permission_classes = [permissions.IsAuthenticated, IsManagementGroup]
+
+    def perform_create(self, serializer):
+        user_id = self.kwargs.get('user_id')  # User ID passed in the URL
+        serializer.save(user_id=user_id)
