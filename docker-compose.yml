@@ -26,6 +26,8 @@ services:
     volumes:
       - ./main_app:/usr/src/app  # Mount the Django app directory for live updates
       
+volumes:
+  pgvector_data:
 
   # django-face-recognition-service:
   #   build:
@@ -47,6 +49,4 @@ services:
   #             count: 1 # alternatively, use `count: all` for all GPUs
   #             capabilities: [gpu]
 
-volumes:
-  pgvector_data:
-  timescale_data:
+
