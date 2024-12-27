@@ -47,3 +47,6 @@ class CalibrationPoint(models.Model):
 
     def __str__(self):
         return f"Calibration for {self.camera.name} - Canvas ({self.canvas_x}, {self.canvas_y}), Camera ({self.camera_x}, {self.camera_y})"    
+    
+class Floorplan(models.Model):
+    photo = models.ImageField(upload_to='floor_plans/', null=False, blank=False)

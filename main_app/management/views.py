@@ -8,7 +8,7 @@ from io import BytesIO
 from PIL import Image
 
 # Your Camera model here
-from .models import Camera
+from .models import Camera, Floorplan
 
 def capture_camera_frame(request, camera_id):
     # Get the camera object
@@ -19,6 +19,9 @@ def capture_camera_frame(request, camera_id):
 
     if not cap.isOpened():
         return HttpResponse("Error: Could not open camera stream", status=500)
+    
+    # Fetch the global floorplan (assuming there is only one)
+    floorplan = Floorplan.objects.first()  # Get the first and only floorplan
 
     # Read a single frame from the camera
     ret, frame = cap.read()
@@ -38,6 +41,7 @@ def capture_camera_frame(request, camera_id):
             return render(request, 'camera_calibration_form.html', {
                 'camera': camera,
                 'image_data': encoded_image,  # Pass the base64-encoded image
+                'floorplan': floorplan,  # Pass the floorplan object
             })
 
     # Release the camera capture object

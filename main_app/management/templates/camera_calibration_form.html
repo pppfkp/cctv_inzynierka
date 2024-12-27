@@ -8,7 +8,18 @@
     
     <!-- Display the captured camera image -->
     <div id="camera-image-container">
+        <h2>Camera</h2>
         <img width="640" height="480" src="data:image/jpeg;base64,{{ image_data }}" alt="Camera Snapshot" id="camera-snapshot">
     </div>
+
+    <!-- Display the floorplan image -->
+    {% if floorplan %}
+    <div id="floorplan-container">
+        <h2>Floorplan</h2>
+        <img width="640" height="480" src="{{ floorplan.photo.url }}" alt="Floorplan" id="floorplan-image">
+    </div>
+    {% else %}
+    <p>No floorplan available.</p>
+    {% endif %}
 </body>
 </html>
