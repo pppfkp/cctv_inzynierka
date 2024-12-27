@@ -8,25 +8,30 @@ import threading
 from ultralytics import YOLO
 import PIL.Image, PIL.ImageTk
 from utils.trackingUtils import send_frame_for_recognition_sync
-from utils.timescaleUtils import save_entry_to_db, set_user_inside_status, save_exit_to_db
+from utils.timescaleUtils import save_entry_to_db, set_user_inside_status, save_exit_to_db, get_all_settings
 
-# python enter.py --camera_index 0 --face_detection_model models/yolov10n-face.pt --face_similarity_treshold 0.5 --face_detection_treshold 0.95
+# python enter.py
+
+# Fetch settings from the database
+settings_from_db = get_all_settings()
+
+# Create a dictionary from the settings to easily access values by key
+settings_dict = {setting['key']: setting['value'] for setting in settings_from_db}
+
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run detection and tracking on a specific camera.")
-    parser.add_argument("--camera_index", type=int, required=True, help="Index of the camera (0 is default)")
-    parser.add_argument("--face_detection_model", type=str, required=True, help="Face detection model name")
-    parser.add_argument("--face_similarity_treshold", type=float, required=True, help="Face similarity treshold")
-    parser.add_argument("--face_detection_treshold", type=float, required=True, help="Face detection treshold")
+    parser.add_argument("--camera_index", type=int, required=False, default=0, help="Index of the camera (0 is default)")
 
     return parser.parse_args()
 
 args = parse_arguments()
 
 CAMERA_LINK = args.camera_index
-FACE_DETECTION_MODEL = args.face_detection_model
-FACE_SIMILARITY_THRESHOLD = args.face_similarity_treshold
-FACE_DETECTION_THRESHOLD = args.face_detection_treshold
+FACE_DETECTION_MODEL = settings_dict.get("faceDetectionModel", "yolov10n-face.pt")
+FACE_SIMILARITY_THRESHOLD = float(settings_dict.get("faceSimilarityTresholdEnterExit", 0.5))
+FACE_DETECTION_THRESHOLD = float(settings_dict.get("faceDetectionTresholdEnterExit", 0.9))
 
 # Constants
 FRAME_WIDTH = 640
@@ -35,7 +40,7 @@ REQUEST_LINK = "http://localhost:8000/face_recognition/api/recognize/"
 
 # Initialize YOLO model (do this outside the loop)
 try:
-    face_model = YOLO(FACE_DETECTION_MODEL, verbose=False).to('cuda')
+    face_model = YOLO(f"models/{FACE_DETECTION_MODEL}", verbose=False).to('cuda')
 except Exception as e:
     print(f"Error loading YOLO model: {e}")
     exit()
