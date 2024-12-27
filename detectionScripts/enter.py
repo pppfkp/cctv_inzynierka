@@ -101,7 +101,7 @@ class App:
                 x1, y1, x2, y2 = box
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             distance, detected_id, user_inside = send_frame_for_recognition_sync(frame, REQUEST_LINK)
-            if distance is None or detected_id is None:
+            if distance is None or distance > FACE_SIMILARITY_THRESHOLD or detected_id is None:
                 self.set_status("Not recognized", 'red')
             else:
                 if user_inside:
@@ -121,7 +121,7 @@ class App:
                 x1, y1, x2, y2 = box
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             distance, detected_id, user_inside = send_frame_for_recognition_sync(frame, REQUEST_LINK)
-            if distance is None or detected_id is None:
+            if distance is None or distance > FACE_SIMILARITY_THRESHOLD or detected_id is None:
                 self.set_status("Not recognized", 'red')
             else:
                 if user_inside:
