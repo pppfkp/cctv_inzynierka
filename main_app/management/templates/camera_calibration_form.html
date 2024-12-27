@@ -2,24 +2,202 @@
 <html>
 <head>
     <title>Camera Calibration</title>
+    <style>
+        canvas {
+            border: 2px solid black;
+            cursor: crosshair;
+        }
+        #points-list {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
     <h1>Calibration for {{ camera.name }}</h1>
-    
-    <!-- Display the captured camera image -->
-    <div id="camera-image-container">
-        <h2>Camera</h2>
-        <img width="640" height="480" src="data:image/jpeg;base64,{{ image_data }}" alt="Camera Snapshot" id="camera-snapshot">
-    </div>
 
-    <!-- Display the floorplan image -->
+
+
+    <div>
+            <!-- Camera canvas -->
+    <div>
+        <h2>Camera</h2>
+        <canvas id="camera-canvas" width="640" height="480"></canvas>
+    </div>
+            <!-- Floorplan canvas -->
     {% if floorplan %}
-    <div id="floorplan-container">
+    <div>
         <h2>Floorplan</h2>
-        <img width="640" height="480" src="{{ floorplan.photo.url }}" alt="Floorplan" id="floorplan-image">
+        <canvas id="floorplan-canvas" width="640" height="480"></canvas>
     </div>
     {% else %}
     <p>No floorplan available.</p>
     {% endif %}
+    </div>
+
+
+    <!-- Coordinates list -->
+    <h3>Coordinates</h3>
+    <ul id="points-list"></ul>
+
+    <!-- Submit form -->
+
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const cameraCanvas = document.getElementById("camera-canvas");
+            const floorplanCanvas = document.getElementById("floorplan-canvas");
+            const pointsList = document.getElementById("points-list");
+            const points = [];
+            const cameraCtx = cameraCanvas.getContext("2d");
+            const floorplanCtx = floorplanCanvas.getContext("2d");
+    
+            let draggingPoint = null;
+    
+            // Load the camera snapshot onto the canvas
+            const cameraImage = new Image();
+            cameraImage.onload = () => cameraCtx.drawImage(cameraImage, 0, 0, 640, 480);
+            cameraImage.src = "data:image/jpeg;base64,{{ image_data }}";
+    
+            // Load the floorplan image onto the canvas
+            {% if floorplan %}
+            const floorplanImage = new Image();
+            floorplanImage.onload = () => floorplanCtx.drawImage(floorplanImage, 0, 0, 640, 480);
+            floorplanImage.src = "{{ floorplan.photo.url }}";
+            {% endif %}
+    
+            function addPoint(x, y, isCamera) {
+                const point = { x, y, isCamera };
+                points.push(point);
+                drawAllPoints();
+                updatePointsList();
+            }
+    
+            function drawAllPoints() {
+                // Clear the canvases
+                cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
+                floorplanCtx.clearRect(0, 0, floorplanCanvas.width, floorplanCanvas.height);
+
+                // Redraw images
+                cameraCtx.drawImage(cameraImage, 0, 0, 640, 480);
+                {% if floorplan %}
+                floorplanCtx.drawImage(floorplanImage, 0, 0, 640, 480);
+                {% endif %}
+
+                // Draw all points and polygons
+                const cameraPoints = points.filter((point) => point.isCamera);
+                const floorplanPoints = points.filter((point) => !point.isCamera);
+
+                drawPolygon(cameraCtx, cameraPoints);
+                drawPolygon(floorplanCtx, floorplanPoints);
+
+                points.forEach((point, index) => {
+                    const pairIndex = Math.floor(index / 2) + 1; // Calculate the pair number
+                    const ctx = point.isCamera ? cameraCtx : floorplanCtx;
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+                    ctx.fillStyle = "red";
+                    ctx.fill();
+                    ctx.closePath();
+
+                    // Draw the pair number
+                    ctx.font = "12px Arial";
+                    ctx.fillStyle = "black";
+                    ctx.fillText(pairIndex, point.x + 8, point.y);
+                });
+            }
+    
+            function drawPolygon(ctx, polygonPoints) {
+                if (polygonPoints.length < 3) return; // A polygon requires at least 3 points
+                ctx.beginPath();
+                ctx.moveTo(polygonPoints[0].x, polygonPoints[0].y);
+                polygonPoints.forEach((point) => ctx.lineTo(point.x, point.y));
+                ctx.closePath();
+                ctx.strokeStyle = "green";
+                ctx.stroke();
+            }
+    
+            function updatePointsList() {
+                pointsList.innerHTML = "";
+                for (let i = 0; i < points.length; i += 2) {
+                    if (i + 1 < points.length) {
+                        const li = document.createElement("li");
+                        li.textContent = `Pair ${i / 2 + 1}: Camera(${points[i].x.toFixed(
+                            1
+                        )}, ${points[i].y.toFixed(1)}), Floorplan(${points[i + 1].x.toFixed(
+                            1
+                        )}, ${points[i + 1].y.toFixed(1)})`;
+                        pointsList.appendChild(li);
+                    }
+                }
+            }
+    
+            function handleCanvasClick(event, canvas, isCamera) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+    
+                // Enforce alternating clicks
+                const nextIsCamera = points.length % 2 === 0;
+                if (isCamera !== nextIsCamera) {
+                    // alert(`Please add the next point on the ${nextIsCamera ? "camera view" : "floorplan"}.`);
+                    return;
+                }
+    
+                if (draggingPoint) {
+                    draggingPoint.x = x;
+                    draggingPoint.y = y;
+                    draggingPoint = null;
+                    drawAllPoints();
+                    updatePointsList();
+                } else {
+                    addPoint(x, y, isCamera);
+                }
+            }
+    
+            function handleMouseMove(event, canvas) {
+                if (draggingPoint) {
+                    const rect = canvas.getBoundingClientRect();
+                    draggingPoint.x = event.clientX - rect.left;
+                    draggingPoint.y = event.clientY - rect.top;
+    
+                    drawAllPoints();
+                    updatePointsList(); // Ensure the points list updates after dragging
+                }
+            }
+    
+            function handleMouseDown(event, canvas) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+    
+                draggingPoint = points.find(
+                    (point) =>
+                        Math.abs(point.x - x) < 5 &&
+                        Math.abs(point.y - y) < 5 &&
+                        ((point.isCamera && canvas === cameraCanvas) ||
+                            (!point.isCamera && canvas === floorplanCanvas))
+                );
+            }
+    
+            function handleMouseUp() {
+                draggingPoint = null;
+            }
+    
+            cameraCanvas.addEventListener("click", (e) => handleCanvasClick(e, cameraCanvas, true));
+            floorplanCanvas.addEventListener("click", (e) => handleCanvasClick(e, floorplanCanvas, false));
+    
+            cameraCanvas.addEventListener("mousedown", (e) => handleMouseDown(e, cameraCanvas));
+            floorplanCanvas.addEventListener("mousedown", (e) => handleMouseDown(e, floorplanCanvas));
+    
+            cameraCanvas.addEventListener("mousemove", (e) => handleMouseMove(e, cameraCanvas));
+            floorplanCanvas.addEventListener("mousemove", (e) => handleMouseMove(e, floorplanCanvas));
+    
+            cameraCanvas.addEventListener("mouseup", handleMouseUp);
+            floorplanCanvas.addEventListener("mouseup", handleMouseUp);
+        });
+    </script>
+    
+    
+    
 </body>
 </html>
