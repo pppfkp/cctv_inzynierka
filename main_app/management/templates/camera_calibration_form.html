@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera Calibration</title>
+</head>
+<body>
+    <h1>Calibration for {{ camera.name }}</h1>
+    
+    <!-- Display the captured camera image -->
+    <div id="camera-image-container">
+        <img width="640" height="480" src="data:image/jpeg;base64,{{ image_data }}" alt="Camera Snapshot" id="camera-snapshot">
+    </div>
+</body>
+</html>

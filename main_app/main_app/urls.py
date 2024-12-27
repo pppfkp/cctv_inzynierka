@@ -20,10 +20,13 @@ from face_recognition.views import extract_embedding_view, FindClosestEmbeddingV
 from django.conf import settings
 from django.conf.urls.static import static
 
+from management.views import capture_camera_frame
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),
-    path('face_recognition/api/recognize/',FindClosestEmbeddingView.as_view())
+    path('face_recognition/api/recognize/',FindClosestEmbeddingView.as_view()),
+     path('calibration/capture/<int:camera_id>/', capture_camera_frame, name='capture_camera_frame'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
