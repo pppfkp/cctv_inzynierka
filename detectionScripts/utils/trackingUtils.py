@@ -79,17 +79,17 @@ def send_frame_for_recognition_sync(frame, request_link):
         response = requests.post(request_link, files={"file": ("frame.jpg", img_bytes, 'image/jpeg')})
 
         # Parse the JSON response and handle potential missing data
-        data = json.loads(response.text)
+        data = response.json()
         distance = data.get("distance", None)
         user_id = data.get("user_id", None)
-
-        # Return distance and user_id, or None if not found
-        return distance, user_id
+        user_inside = data.get("user_inside")
+        print(f"face recognition distance: {distance} user_id: {user_id}")
+        return distance, user_id, user_inside
 
     except (requests.RequestException, json.JSONDecodeError) as e:
         # Handle request or decoding errors
         print(f"Error sending frame for recognition: {e}")
-        return None, None          
+        return None, None, None          
     
 
 async def send_frame_for_recognition(frame, session, request_link):
