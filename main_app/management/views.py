@@ -7,6 +7,7 @@ from django.conf import settings
 import numpy as np
 from io import BytesIO
 from PIL import Image
+import numpy as np
 
 # Your Camera model here
 from .models import CalibrationPoint, Camera, Floorplan
@@ -55,10 +56,16 @@ def save_calibration_points(request, camera_id):
         if valid_points:
             CalibrationPoint.objects.bulk_create(valid_points)
 
+        # Now compute the transformation matrix
+        camera_points = [(point.canvas_x, point.canvas_y) for point in valid_points]
+        floorplan_points = [(point.camera_x, point.camera_y) for point in valid_points]
+
+        # Compute and save the transformation matrix
+        camera.save_transformation_matrix(camera_points, floorplan_points)
+
         return redirect("capture_camera_frame", camera_id=camera.id)
 
     return JsonResponse({"error": "Invalid method."}, status=405)
-
 
 def capture_camera_frame(request, camera_id):
     # Get the camera object
