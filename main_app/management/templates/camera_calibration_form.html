@@ -15,63 +15,63 @@
 <body>
     <h1>Calibration for {{ camera.name }}</h1>
 
-
-
     <div>
-            <!-- Camera canvas -->
-    <div>
-        <h2>Camera</h2>
-        <canvas id="camera-canvas" width="640" height="480"></canvas>
+        <!-- Camera canvas -->
+        <div>
+            <h2>Camera</h2>
+            <canvas id="camera-canvas" width="640" height="480"></canvas>
+        </div>
+        
+        <!-- Floorplan canvas -->
+        {% if floorplan %}
+        <div>
+            <h2>Floorplan</h2>
+            <canvas id="floorplan-canvas" width="640" height="480"></canvas>
+        </div>
+        {% else %}
+        <p>No floorplan available.</p>
+        {% endif %}
     </div>
-            <!-- Floorplan canvas -->
-    {% if floorplan %}
-    <div>
-        <h2>Floorplan</h2>
-        <canvas id="floorplan-canvas" width="640" height="480"></canvas>
-    </div>
-    {% else %}
-    <p>No floorplan available.</p>
-    {% endif %}
-    </div>
-
 
     <!-- Coordinates list -->
     <h3>Coordinates</h3>
     <ul id="points-list"></ul>
 
     <!-- Submit form -->
-
+    <button onclick="saveCalibrationPoints()">Save Calibration Points</button>
 
     <script>
+        // Global points array, accessible throughout the script
+        const points = [];
+        
         document.addEventListener("DOMContentLoaded", function () {
             const cameraCanvas = document.getElementById("camera-canvas");
             const floorplanCanvas = document.getElementById("floorplan-canvas");
             const pointsList = document.getElementById("points-list");
-            const points = [];
             const cameraCtx = cameraCanvas.getContext("2d");
             const floorplanCtx = floorplanCanvas.getContext("2d");
-    
+
             let draggingPoint = null;
-    
+
             // Load the camera snapshot onto the canvas
             const cameraImage = new Image();
             cameraImage.onload = () => cameraCtx.drawImage(cameraImage, 0, 0, 640, 480);
             cameraImage.src = "data:image/jpeg;base64,{{ image_data }}";
-    
+
             // Load the floorplan image onto the canvas
             {% if floorplan %}
             const floorplanImage = new Image();
             floorplanImage.onload = () => floorplanCtx.drawImage(floorplanImage, 0, 0, 640, 480);
             floorplanImage.src = "{{ floorplan.photo.url }}";
             {% endif %}
-    
+
             function addPoint(x, y, isCamera) {
                 const point = { x, y, isCamera };
                 points.push(point);
                 drawAllPoints();
                 updatePointsList();
             }
-    
+
             function drawAllPoints() {
                 // Clear the canvases
                 cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
@@ -105,7 +105,7 @@
                     ctx.fillText(pairIndex, point.x + 8, point.y);
                 });
             }
-    
+
             function drawPolygon(ctx, polygonPoints) {
                 if (polygonPoints.length < 3) return; // A polygon requires at least 3 points
                 ctx.beginPath();
@@ -115,7 +115,7 @@
                 ctx.strokeStyle = "green";
                 ctx.stroke();
             }
-    
+
             function updatePointsList() {
                 pointsList.innerHTML = "";
                 for (let i = 0; i < points.length; i += 2) {
@@ -130,19 +130,18 @@
                     }
                 }
             }
-    
+
             function handleCanvasClick(event, canvas, isCamera) {
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
                 const y = event.clientY - rect.top;
-    
+
                 // Enforce alternating clicks
                 const nextIsCamera = points.length % 2 === 0;
                 if (isCamera !== nextIsCamera) {
-                    // alert(`Please add the next point on the ${nextIsCamera ? "camera view" : "floorplan"}.`);
                     return;
                 }
-    
+
                 if (draggingPoint) {
                     draggingPoint.x = x;
                     draggingPoint.y = y;
@@ -153,23 +152,23 @@
                     addPoint(x, y, isCamera);
                 }
             }
-    
+
             function handleMouseMove(event, canvas) {
                 if (draggingPoint) {
                     const rect = canvas.getBoundingClientRect();
                     draggingPoint.x = event.clientX - rect.left;
                     draggingPoint.y = event.clientY - rect.top;
-    
+
                     drawAllPoints();
                     updatePointsList(); // Ensure the points list updates after dragging
                 }
             }
-    
+
             function handleMouseDown(event, canvas) {
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
                 const y = event.clientY - rect.top;
-    
+
                 draggingPoint = points.find(
                     (point) =>
                         Math.abs(point.x - x) < 5 &&
@@ -178,26 +177,56 @@
                             (!point.isCamera && canvas === floorplanCanvas))
                 );
             }
-    
+
             function handleMouseUp() {
                 draggingPoint = null;
             }
-    
+
             cameraCanvas.addEventListener("click", (e) => handleCanvasClick(e, cameraCanvas, true));
             floorplanCanvas.addEventListener("click", (e) => handleCanvasClick(e, floorplanCanvas, false));
-    
+
             cameraCanvas.addEventListener("mousedown", (e) => handleMouseDown(e, cameraCanvas));
             floorplanCanvas.addEventListener("mousedown", (e) => handleMouseDown(e, floorplanCanvas));
-    
+
             cameraCanvas.addEventListener("mousemove", (e) => handleMouseMove(e, cameraCanvas));
             floorplanCanvas.addEventListener("mousemove", (e) => handleMouseMove(e, floorplanCanvas));
-    
+
             cameraCanvas.addEventListener("mouseup", handleMouseUp);
             floorplanCanvas.addEventListener("mouseup", handleMouseUp);
         });
+
+        function saveCalibrationPoints() {
+            // Gather points data to send to the server
+            const pointsData = points.map(point => ({
+                canvas_x: point.x,
+                canvas_y: point.y,
+                camera_x: point.isCamera ? point.x : null, // Camera coordinates are the same for camera points
+                camera_y: point.isCamera ? point.y : null, // Camera coordinates are the same for camera points
+            }));
+
+            // Send points data to the server via AJAX
+            fetch("{% url 'save_calibration_points' camera.id %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}",
+                },
+                body: JSON.stringify({ points: pointsData }),
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert("Calibration points saved successfully.");
+                    window.location.href = "{% url 'capture_camera_frame' camera.id %}";
+                } else {
+                    alert("Failed to save calibration points.");
+                }
+            })
+            .catch(error => {
+                console.error("Error saving points:", error);
+                alert("An error occurred while saving calibration points.");
+            });
+        }
     </script>
-    
-    
-    
+
 </body>
 </html>
