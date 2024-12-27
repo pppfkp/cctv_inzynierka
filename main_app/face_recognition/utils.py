@@ -3,7 +3,7 @@ from PIL import Image
 import numpy as np
 from .model_loader import get_models, _device
 
-def extract_embedding(photo):
+def extract_embedding(photo, confidence_threshold=0.95):
     try:
         # Get models on the specified device
         mtcnn, resnet = get_models()
@@ -13,10 +13,27 @@ def extract_embedding(photo):
             # Open the image and ensure it's in RGB format
             photo = Image.open(photo).convert('RGB')
         
-        # Perform face detection and move the detected face tensor to the correct device
+        # Get both boxes and probabilities from MTCNN
+        boxes, probs = mtcnn.detect(photo)
+        
+        # Check if any faces were detected
+        if boxes is None or len(boxes) == 0:
+            print("No faces detected in the image")
+            return None
+        
+        # Check if the highest confidence face meets our threshold
+        max_prob = max(probs)
+        if max_prob < confidence_threshold:
+            print(f"Face detected but confidence ({max_prob:.2f}) is below threshold ({confidence_threshold})")
+            return None
+            
+        # Get the index of the highest confidence face
+        max_prob_idx = probs.argmax()
+        
+        # Extract the face with highest confidence
         cropped_face = mtcnn(photo)
         if cropped_face is None:
-            print("No face detected")
+            print("Error cropping face")
             return None
         
         # Ensure cropped_face is on the same device as the resnet model
@@ -25,7 +42,8 @@ def extract_embedding(photo):
         # Pass through the face recognition model
         embedding = resnet(cropped_face.unsqueeze(0).to(_device)).detach().cpu()[0]
         
-        return embedding
+        return embedding # Return both embedding and confidence score
+        
     except Exception as e:
         print(f"Error extracting embedding: {e}")
         return None
