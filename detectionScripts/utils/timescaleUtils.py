@@ -60,14 +60,6 @@ def save_to_timescaledb(data_batch):
             DB_POOL.putconn(conn)
 
 def save_entry_to_db(entry):
-    """
-    Save a batch of detection data to the database.
-
-    Args:
-        data_batch (list): A list of tuples containing detection data to insert.
-                           Each tuple should contain:
-                           (user_id, camera_id, track_id, time, x_center, y_center, width, height)
-    """
     try:
         conn = DB_POOL.getconn()
         cursor = conn.cursor()

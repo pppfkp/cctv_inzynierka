@@ -1,93 +1,141 @@
-from datetime import datetime
 import cv2
+import argparse
+import tkinter as tk
+from tkinter import ttk
+from datetime import datetime
+import requests
+import threading
 from ultralytics import YOLO
-import aiohttp
-import asyncio
-import time
-from utils.trackingUtils import detect_face, send_frame_for_recognition
-from utils.timescaleUtils import save_entry_to_db, set_user_inside_status
-import logging
+import PIL.Image, PIL.ImageTk
+from utils.trackingUtils import send_frame_for_recognition_sync
+from utils.timescaleUtils import save_entry_to_db, set_user_inside_status, save_exit_to_db, get_all_settings
 
-logging.basicConfig(level=logging.INFO)
+# python enter.py
 
-FRAME_WIDTH = 1920
-FRAME_HEIGHT = 1080
-FACE_DETECTION_MODEL = "models/yolov10n-face.pt" 
-FACE_DETECTION_THRESHOLD = 0.5
-CAMERA_LINK = 0 
-REQUEST_LINK = "http://localhost:8000/face_recognition/api/recognize/"  # closest embedding request address
+# Fetch settings from the database
+settings_from_db = get_all_settings()
+
+# Create a dictionary from the settings to easily access values by key
+settings_dict = {setting['key']: setting['value'] for setting in settings_from_db}
 
 
-def open_camera(link):
-    cap = cv2.VideoCapture(link)
-    if cap.isOpened():
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffering
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
-    return cap
 
-face_model = YOLO(FACE_DETECTION_MODEL, verbose=False).to('cuda')
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Run detection and tracking on a specific camera.")
+    parser.add_argument("--camera_index", type=int, required=False, default=0, help="Index of the camera (0 is default)")
 
-async def main():
-    cap = open_camera(CAMERA_LINK)
+    return parser.parse_args()
 
-    async with aiohttp.ClientSession() as session:
-        while True:
-            if not cap.isOpened():
-                logging.error("Unable to open camera. Retrying in 5 seconds...")
-                time.sleep(5)
-                cap = open_camera(CAMERA_LINK)
-                continue
+args = parse_arguments()
 
-            ret, frame = cap.read()
+CAMERA_LINK = args.camera_index
+FACE_DETECTION_MODEL = settings_dict.get("faceDetectionModel", "yolov10n-face.pt")
+FACE_SIMILARITY_THRESHOLD = float(settings_dict.get("faceSimilarityTresholdEnterExit", 0.5))
+FACE_DETECTION_THRESHOLD = float(settings_dict.get("faceDetectionTresholdEnterExit", 0.9))
 
-            if not ret:
-                logging.error("Unable to retrieve frame. Retrying connection...")
-                cap.release()
-                time.sleep(2)
-                cap = open_camera(CAMERA_LINK)
-                continue
+# Constants
+FRAME_WIDTH = 640
+FRAME_HEIGHT = 480
+REQUEST_LINK = "http://localhost:8000/face_recognition/api/recognize/" 
 
-            # Detect faces
-            result = detect_face(frame, face_model, FACE_DETECTION_THRESHOLD)
+# Initialize YOLO model (do this outside the loop)
+try:
+    face_model = YOLO(f"models/{FACE_DETECTION_MODEL}", verbose=False).to('cuda')
+except Exception as e:
+    print(f"Error loading YOLO model: {e}")
+    exit()
 
-            # If a face was detected, draw a bounding box around it
-            if result is not None:
-                # result is the largest face detected, with `xywh` coordinates.
-                x_center, y_center, w, h = result.xywh[0].cpu().numpy()
+def detect_faces(frame):
+    results = face_model.predict(frame, conf=FACE_DETECTION_THRESHOLD)
+    boxes = []
+    for result in results:
+        for box in result.boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            boxes.append((x1, y1, x2, y2))
+    return boxes
 
-                # Convert center-based coordinates to top-left (x1, y1) and bottom-right (x2, y2)
-                x1 = int(x_center - w / 2)
-                y1 = int(y_center - h / 2)
-                x2 = int(x_center + w / 2)
-                y2 = int(y_center + h / 2)
+class App:
+    def __init__(self, window, window_title, video_source=CAMERA_LINK):
+        self.window = window
+        self.window.title(window_title)
+        self.video_source = video_source
+        self.cap = cv2.VideoCapture(self.video_source)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+        self.session = requests.Session()
 
-                # Draw a rectangle around the detected face
+        self.canvas = tk.Canvas(window, width=FRAME_WIDTH, height=FRAME_HEIGHT)
+        self.canvas.pack()
+
+        # Recognize (entry) button
+        self.btn_recognize_entry = ttk.Button(window, text="Recognize Entry", command=self.start_recognition_entry)
+        self.btn_recognize_entry.pack()
+
+        # Recognize (exit) button
+        self.btn_recognize_exit = ttk.Button(window, text="Recognize Exit", command=self.start_recognition_exit)
+        self.btn_recognize_exit.pack()
+
+        self.status_label = ttk.Label(window, text="", foreground='black')
+        self.status_label.pack()
+
+        self.delay = 15  # milliseconds
+        self.update()
+        self.window.mainloop()
+
+    def set_status(self, message, color):
+        self.status_label.config(text=message, foreground=color)
+
+    def update(self):
+        ret, frame = self.cap.read()
+        if ret:
+            self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
+            self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
+        self.window.after(self.delay, self.update)
+
+    def start_recognition_entry(self):
+        threading.Thread(target=self.recognize_entry, daemon=True).start()
+
+    def start_recognition_exit(self):
+        threading.Thread(target=self.recognize_exit, daemon=True).start()
+
+    def recognize_entry(self):
+        ret, frame = self.cap.read()
+        if ret:
+            face_boxes = detect_faces(frame)
+            for box in face_boxes:
+                x1, y1, x2, y2 = box
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            distance, detected_id, user_inside = send_frame_for_recognition_sync(frame, REQUEST_LINK)
+            if distance is None or distance > FACE_SIMILARITY_THRESHOLD or detected_id is None:
+                self.set_status("Not recognized", 'red')
+            else:
+                if user_inside:
+                    self.set_status(f"User {detected_id} is already inside", 'orange')
+                else:
+                    self.set_status(f"User {detected_id} entered (distance: {distance:.2f})", 'green')
+                    save_entry_to_db((datetime.now().strftime("%Y-%m-%d %H:%M:%S"), detected_id))
+                    set_user_inside_status(detected_id, True)
+        else:
+            self.set_status("Error: Could not capture frame", 'red')
 
-            # Display frame
-            cv2.imshow('Face Detection', frame)
+    def recognize_exit(self):
+        ret, frame = self.cap.read()
+        if ret:
+            face_boxes = detect_faces(frame)
+            for box in face_boxes:
+                x1, y1, x2, y2 = box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            distance, detected_id, user_inside = send_frame_for_recognition_sync(frame, REQUEST_LINK)
+            if distance is None or distance > FACE_SIMILARITY_THRESHOLD or detected_id is None:
+                self.set_status("Not recognized", 'red')
+            else:
+                if user_inside:
+                    self.set_status(f"User {detected_id} left (distance: {distance:.2f})", 'green')
+                    set_user_inside_status(detected_id, False)
+                    save_exit_to_db((datetime.now().strftime("%Y-%m-%d %H:%M:%S"), detected_id))
+                else:
+                    self.set_status(f"User {detected_id} is not inside", 'orange')
+        else:
+            self.set_status("Error: Could not capture frame", 'red')
 
-            # Exit condition
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-            # Exit condition
-            if cv2.waitKey(1) & 0xFF == ord('s'):
-                distance, detected_id, user_inside = await send_frame_for_recognition(frame, session, REQUEST_LINK)
-                
-                if distance is not None and detected_id is not None:
-                    if user_inside:
-                        print("user is already inside")
-                    else: 
-                        print(f"distance: {distance} user_id: {detected_id} user_inside: {user_inside}")
-                        save_entry_to_db((datetime.now().strftime("%Y-%m-%d %H:%M:%S"), detected_id))
-                        set_user_inside_status(detected_id, True)
-
-
-        # Release resources
-        cap.release()
-        cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    asyncio.run(main())
+App(tk.Tk(), "Entry and Exit App")
