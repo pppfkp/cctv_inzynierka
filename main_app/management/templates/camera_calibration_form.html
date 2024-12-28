@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Calibration</title>
+    <style>
+        .camera-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .boundaries-list {
+            margin-top: 20px;
+        }
+        .boundary-item {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="camera-container">
+        <h1>Camera: {{ camera.name }}</h1>
+        {% if image_data %}
+            <img src="data:image/jpeg;base64,{{ image_data }}" alt="Camera Frame" style="max-width: 100%; height: auto;">
+        {% else %}
+            <p>Could not load the camera image.</p>
+        {% endif %}
+    </div>
+
+    <div class="boundaries-list">
+        <h2>Boundaries</h2>
+        {% if boundaries %}
+            <ul>
+                {% for boundary in boundaries %}
+                    <li class="boundary-item">
+                        <strong>Zone:</strong> {{ boundary.zone.name }}<br>
+                        <strong>Polygon Coordinates:</strong> 
+                        [{{ boundary.polygon|join:", " }}]
+                        {% if boundary.zone.description %}
+                            <br><strong>Zone Description:</strong> {{ boundary.zone.description }}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No boundaries available for this camera.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -17,13 +17,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from face_recognition.views import extract_embedding_view, FindClosestEmbeddingView
+from management.views import capture_camera_frame_for_boundaries_edit
 from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),
-    path('face_recognition/api/recognize/',FindClosestEmbeddingView.as_view())
+    path('face_recognition/api/recognize/',FindClosestEmbeddingView.as_view()),
+    path('camera/<int:camera_id>/edit-boundaries/', capture_camera_frame_for_boundaries_edit, name='edit_boundaries'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

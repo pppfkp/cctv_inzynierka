@@ -39,10 +39,10 @@ class Setting(models.Model):
         return f"{self.key}: {self.value}" 
     
 class Zone(models.Model):
-    name = models.CharField(max_length=100, unique=True),
+    name = models.CharField(max_length=100, unique=True)
     description = models.CharField(max_length=255, null=True)
 
 class Boundary(models.Model):
     camera = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='boundaries')
     zone = models.ForeignKey(Zone, on_delete=models.CASCADE, related_name='boundaries')
-    polygon = VectorField(dimensions=10)
+    polygon = VectorField(dimensions=20)
