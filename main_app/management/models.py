@@ -36,14 +36,13 @@ class Setting(models.Model):
     data_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='str')
 
     def __str__(self):
-        return f"{self.key}: {self.value}"
+        return f"{self.key}: {self.value}" 
     
-class CalibrationPoint(models.Model):
-    camera = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='calibration_points')
-    canvas_x = models.FloatField()
-    canvas_y = models.FloatField()
-    camera_x = models.FloatField()
-    camera_y = models.FloatField()
+class Zone(models.Model):
+    name = models.CharField(max_length=100, unique=True),
+    description = models.CharField(max_length=255, null=True)
 
-    def __str__(self):
-        return f"Calibration for {self.camera.name} - Canvas ({self.canvas_x}, {self.canvas_y}), Camera ({self.camera_x}, {self.camera_y})"    
+class Boundary(models.Model):
+    camera = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='boundaries')
+    zone = models.ForeignKey(Zone, on_delete=models.CASCADE, related_name='boundaries')
+    polygon = VectorField(dimensions=10)
