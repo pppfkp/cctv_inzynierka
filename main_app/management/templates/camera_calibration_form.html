@@ -41,17 +41,27 @@
         <h2>Boundaries</h2>
         <ul>
             {% for boundary in boundaries %}
-            <li class="boundary-item" data-polygon="{{ boundary.polygon }}">
+            <li class="boundary-item" data-polygon="{{ boundary.polygon }}" data-boundary-id="{{ boundary.id }}">
                 {{ boundary.zone.name }} (ID: {{ boundary.id }}) {{ boundary.polygon }}
             </li>
             {% endfor %}
         </ul>
     </div>
 
+    <!-- Save Points Button -->
+    <button id="savePointsButton" disabled>Save Points</button>
+
     <script>
         // Get canvas and context
         const canvas = document.getElementById('cameraCanvas');
         const ctx = canvas.getContext('2d');
+        const savePointsButton = document.getElementById('savePointsButton');
+
+        let currentBoundaryId = null;
+        let points = [];  // Array to store points as objects { x, y }
+        let isDragging = false;
+        let draggedPoint = null;
+        let offsetX, offsetY;
 
         // Load the camera image as background
         const image = new Image();
@@ -68,65 +78,41 @@
                 .map(Number);             // Convert strings to numbers
         }
 
-        // Function to draw a polygon on the canvas, display points and coordinates
-        let points = [];  // Array to store points as objects { x, y }
-        let isDragging = false;
-        let draggedPoint = null;
-        let offsetX, offsetY;
-
-        function convertPointsToSave(points) {
-            // Convert the points to the desired flat array format
-            const output = points.flatMap(point => [point.x, point.y]);
-
-            console.log(output);
-        }
-
+        // Function to draw a polygon on the canvas
         function drawPolygon(polygon) {
             points = [];
-            // Convert the polygon string into an array of point objects
             for (let i = 0; i < polygon.length; i += 2) {
                 points.push({ x: polygon[i], y: polygon[i + 1] });
             }
-
-            console.log("Points array after drawing:", points); // Debugging
 
             // Clear canvas and redraw the image
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-            // Draw the polygon and display points with coordinates
+            // Draw the polygon
             ctx.beginPath();
             points.forEach((point, index) => {
                 const x = point.x;
                 const y = point.y;
 
-                // Draw point (circle)
                 ctx.arc(x, y, 5, 0, 2 * Math.PI); // Draw a small circle at the point
-                // ctx.fillStyle = 'blue';
-                // ctx.fill(); // Fill the circle with color
 
                 // Display the coordinates near the point
                 ctx.fillStyle = 'black';
                 ctx.font = '12px Arial';
-                ctx.fillText(`(${x}, ${y})`, x + 10, y - 10); // Adjust text position for better visibility
+                ctx.fillText(`(${x}, ${y})`, x + 10, y - 10);
 
-                // Connect points with lines
                 if (index === 0) {
-                    ctx.moveTo(x, y); // Move to the first point
+                    ctx.moveTo(x, y);
                 } else {
-                    ctx.lineTo(x, y); // Draw lines to subsequent points
+                    ctx.lineTo(x, y);
                 }
             });
 
-            // Close the polygon and fill it
-            ctx.closePath(); // Close the polygon
-            // ctx.fillStyle = 'rgba(0, 0, 255, 0.2)'; // Light blue fill color for the polygon
-            // ctx.fill(); // Fill the inside of the polygon with the specified color
-
-            // Outline the polygon with a red stroke
+            ctx.closePath();
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 2;
-            ctx.stroke(); // Render the polygon outline
+            ctx.stroke();
         }
 
         // Example usage with data-polygon
@@ -136,6 +122,9 @@
                 const polygon = item.getAttribute('data-polygon');
                 const parsedPolygon = parsePolygon(polygon);
                 drawPolygon(parsedPolygon);
+
+                currentBoundaryId = item.getAttribute('data-boundary-id');
+                savePointsButton.disabled = false;
             });
         });
 
@@ -144,11 +133,10 @@
             const mouseX = e.offsetX;
             const mouseY = e.offsetY;
 
-            // Check if the mouse is over any point
             draggedPoint = null;
             points.forEach((point, index) => {
                 const dist = Math.sqrt((mouseX - point.x) ** 2 + (mouseY - point.y) ** 2);
-                if (dist < 10) { // If within 10px radius, consider it as the point to drag
+                if (dist < 10) {
                     draggedPoint = index;
                     offsetX = mouseX - point.x;
                     offsetY = mouseY - point.y;
@@ -165,11 +153,9 @@
                 const mouseX = e.offsetX;
                 const mouseY = e.offsetY;
 
-                // Update the position of the dragged point
                 points[draggedPoint].x = mouseX - offsetX;
                 points[draggedPoint].y = mouseY - offsetY;
 
-                // Redraw the polygon with the updated points
                 drawPolygon(points.flatMap(p => [p.x, p.y]));
             }
         });
@@ -182,6 +168,37 @@
         canvas.addEventListener('mouseleave', () => {
             isDragging = false;
             draggedPoint = null;
+        });
+
+        // Save points to the server
+        savePointsButton.addEventListener('click', () => {
+            if (!currentBoundaryId) {
+                alert('No boundary selected!');
+                return;
+            }
+
+            const flattenedPoints = points.flatMap(p => [p.x, p.y]);
+
+            fetch(`/save-boundary/${currentBoundaryId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ points: flattenedPoints })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(`Error: ${data.error}`);
+                } else {
+                    alert('Boundary points updated successfully!');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving the points.');
+            });
         });
     </script>
 </body>
