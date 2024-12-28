@@ -1,52 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Camera Calibration</title>
     <style>
-        .camera-container {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .boundaries-list {
+        .boundary-list {
             margin-top: 20px;
         }
+
         .boundary-item {
-            border: 1px solid #ccc;
-            padding: 10px;
+            cursor: pointer;
             margin-bottom: 10px;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+        }
+
+        .boundary-item:hover {
+            background-color: #ddd;
+        }
+
+        canvas {
+            border: 1px solid black;
         }
     </style>
 </head>
+
 <body>
-    <div class="camera-container">
-        <h1>Camera: {{ camera.name }}</h1>
-        {% if image_data %}
-            <img src="data:image/jpeg;base64,{{ image_data }}" alt="Camera Frame" style="max-width: 100%; height: auto;">
-        {% else %}
-            <p>Could not load the camera image.</p>
-        {% endif %}
+    <h1>Camera Calibration</h1>
+
+    <!-- Camera Image with Canvas Overlay -->
+    <div>
+        <canvas id="cameraCanvas" width="640" height="480"></canvas>
     </div>
 
-    <div class="boundaries-list">
+    <!-- Boundary List -->
+    <div class="boundary-list">
         <h2>Boundaries</h2>
-        {% if boundaries %}
-            <ul>
-                {% for boundary in boundaries %}
-                    <li class="boundary-item">
-                        <strong>Zone:</strong> {{ boundary.zone.name }}<br>
-                        <strong>Polygon Coordinates:</strong> 
-                        [{{ boundary.polygon|join:", " }}]
-                        {% if boundary.zone.description %}
-                            <br><strong>Zone Description:</strong> {{ boundary.zone.description }}
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>No boundaries available for this camera.</p>
-        {% endif %}
+        <ul>
+            {% for boundary in boundaries %}
+            <li class="boundary-item" data-polygon="{{ boundary.polygon }}">
+                {{ boundary.zone.name }} (ID: {{ boundary.id }}) {{ boundary.polygon }}
+            </li>
+            {% endfor %}
+        </ul>
     </div>
+
+    <script>
+        // Get canvas and context
+        const canvas = document.getElementById('cameraCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Load the camera image as background
+        const image = new Image();
+        image.src = "data:image/jpeg;base64,{{ image_data }}";
+        image.onload = () => {
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        };
+
+        // Convert the flattened polygon to an array of points
+        function parsePolygon(polygonString) {
+            return polygonString
+                .replace(/[\[\]]/g, '')  // Remove square brackets if present
+                .split(' ')               // Split by spaces
+                .map(Number);             // Convert strings to numbers
+        }
+
+        // Function to draw a polygon on the canvas, display points and coordinates
+        let points = [];  // Array to store points as objects { x, y }
+        let isDragging = false;
+        let draggedPoint = null;
+        let offsetX, offsetY;
+
+        function convertPointsToSave(points) {
+            // Convert the points to the desired flat array format
+            const output = points.flatMap(point => [point.x, point.y]);
+
+            console.log(output);
+        }
+
+        function drawPolygon(polygon) {
+            points = [];
+            // Convert the polygon string into an array of point objects
+            for (let i = 0; i < polygon.length; i += 2) {
+                points.push({ x: polygon[i], y: polygon[i + 1] });
+            }
+
+            console.log("Points array after drawing:", points); // Debugging
+
+            // Clear canvas and redraw the image
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+            // Draw the polygon and display points with coordinates
+            ctx.beginPath();
+            points.forEach((point, index) => {
+                const x = point.x;
+                const y = point.y;
+
+                // Draw point (circle)
+                ctx.arc(x, y, 5, 0, 2 * Math.PI); // Draw a small circle at the point
+                // ctx.fillStyle = 'blue';
+                // ctx.fill(); // Fill the circle with color
+
+                // Display the coordinates near the point
+                ctx.fillStyle = 'black';
+                ctx.font = '12px Arial';
+                ctx.fillText(`(${x}, ${y})`, x + 10, y - 10); // Adjust text position for better visibility
+
+                // Connect points with lines
+                if (index === 0) {
+                    ctx.moveTo(x, y); // Move to the first point
+                } else {
+                    ctx.lineTo(x, y); // Draw lines to subsequent points
+                }
+            });
+
+            // Close the polygon and fill it
+            ctx.closePath(); // Close the polygon
+            // ctx.fillStyle = 'rgba(0, 0, 255, 0.2)'; // Light blue fill color for the polygon
+            // ctx.fill(); // Fill the inside of the polygon with the specified color
+
+            // Outline the polygon with a red stroke
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.stroke(); // Render the polygon outline
+        }
+
+        // Example usage with data-polygon
+        const boundaryItems = document.querySelectorAll('.boundary-item');
+        boundaryItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const polygon = item.getAttribute('data-polygon');
+                const parsedPolygon = parsePolygon(polygon);
+                drawPolygon(parsedPolygon);
+            });
+        });
+
+        // Event listeners for dragging functionality
+        canvas.addEventListener('mousedown', (e) => {
+            const mouseX = e.offsetX;
+            const mouseY = e.offsetY;
+
+            // Check if the mouse is over any point
+            draggedPoint = null;
+            points.forEach((point, index) => {
+                const dist = Math.sqrt((mouseX - point.x) ** 2 + (mouseY - point.y) ** 2);
+                if (dist < 10) { // If within 10px radius, consider it as the point to drag
+                    draggedPoint = index;
+                    offsetX = mouseX - point.x;
+                    offsetY = mouseY - point.y;
+                }
+            });
+
+            if (draggedPoint !== null) {
+                isDragging = true;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging && draggedPoint !== null) {
+                const mouseX = e.offsetX;
+                const mouseY = e.offsetY;
+
+                // Update the position of the dragged point
+                points[draggedPoint].x = mouseX - offsetX;
+                points[draggedPoint].y = mouseY - offsetY;
+
+                // Redraw the polygon with the updated points
+                drawPolygon(points.flatMap(p => [p.x, p.y]));
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            draggedPoint = null;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+            draggedPoint = null;
+        });
+    </script>
 </body>
+
 </html>
