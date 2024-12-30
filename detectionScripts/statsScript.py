@@ -6,7 +6,13 @@ from shapely.geometry import Point, Polygon
 import ast
 import matplotlib.pyplot as plt
 import numpy as np
-
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import Frame, PageTemplate, NextPageTemplate
 from datetime import datetime
 
 # Database connection settings from .env
@@ -51,6 +57,32 @@ def get_detection_results(user_id, start_time, end_time):
 
     return results
 
+def get_all_detection_results(start_time, end_time):
+    query = """
+    SELECT id, "time", 
+           vector_norm(subvector(xywh, 1, 1)) AS x, 
+           vector_norm(subvector(xywh, 2, 1)) + vector_norm(subvector(xywh, 4, 1)) / 2 AS y, 
+           camera_id, user_id, track_id
+    FROM public.stats_detection
+    WHERE "time" BETWEEN %s AND %s
+    ORDER BY "time"
+    """
+
+    conn = None
+    results = []
+    try:
+        conn = DB_POOL.getconn()
+        with conn.cursor() as cursor:
+            cursor.execute(query, (start_time, end_time))
+            results = cursor.fetchall()
+    except Exception as e:
+        print(f"Error executing query: {e}")
+    finally:
+        if conn:
+            DB_POOL.putconn(conn)
+
+    return results
+
 def get_boundaries():
     query = """
     SELECT id, polygon, camera_id, zone_id
@@ -84,6 +116,81 @@ def get_boundaries():
             DB_POOL.putconn(conn)
 
     return boundaries
+
+
+class PDFReportGenerator:
+    def __init__(self, output_pdf_file):
+        self.doc = SimpleDocTemplate(
+            output_pdf_file,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+        self.story = []
+        self.styles = self._create_styles()
+    
+    def _create_styles(self):
+        styles = {
+            'Title': ParagraphStyle(
+                'Title',
+                fontSize=14,
+                spaceAfter=30,
+                fontName='Helvetica-Bold'
+            ),
+            'Normal': ParagraphStyle(
+                'Normal',
+                fontSize=10,
+                spaceAfter=12,
+                fontName='Helvetica'
+            ),
+            'Heading2': ParagraphStyle(
+                'Heading2',
+                fontSize=12,
+                spaceAfter=6,
+                fontName='Helvetica-Bold'
+            )
+        }
+        return styles
+
+    def add_title(self, title):
+        self.story.append(Paragraph(title, self.styles['Title']))
+        self.story.append(Spacer(1, 12))
+
+    def add_detection_stats(self, detection_count):
+        self.story.append(Paragraph("Detection Stats Per Boundary:", self.styles['Heading2']))
+        for boundary_id, count in detection_count.items():
+            stats_text = f"Boundary {boundary_id}: {count} detections"
+            self.story.append(Paragraph(stats_text, self.styles['Normal']))
+        self.story.append(Spacer(1, 12))
+
+    def add_heatmaps(self, boundaries, associated_results):
+        self.story.append(Paragraph("Boundary Heatmaps:", self.styles['Heading2']))
+        self.story.append(Spacer(1, 12))
+        
+        for boundary in boundaries:
+            boundary_id = boundary["id"]
+            # Create heatmap image
+            create_heatmap_with_polygon(associated_results, [boundary])
+            image_file = f"heatmap_boundary_{boundary_id}.png"
+            
+            # Add image with controlled size
+            img = Image(image_file, width=6*inch, height=4.5*inch)
+            self.story.append(img)
+            self.story.append(Spacer(1, 24))
+
+    def generate(self, associated_results, detection_count, boundaries):
+        self.add_title("Detection and Boundary Report")
+        self.add_detection_stats(detection_count)
+        self.add_heatmaps(boundaries, associated_results)
+        self.doc.build(self.story)
+        print(f"PDF report created: {self.doc.filename}")
+
+def generate_pdf_report(associated_results, detection_count, boundaries, output_pdf_file):
+    generator = PDFReportGenerator(output_pdf_file)
+    generator.generate(associated_results, detection_count, boundaries)
+
 
 def associate_detections_with_boundaries(detections, boundaries):
     output_rows = []
@@ -182,9 +289,10 @@ def count_detections_per_boundary(associated_results, boundaries):
 if __name__ == "__main__":
     # Example usage
     user_id = 1
-    start_time = datetime(2024, 12, 30, 16, 45, 00)
+    start_time = datetime(2024, 11, 30, 16, 45, 00)
     end_time = datetime(2024, 12, 30, 16, 55, 00)
 
+    # detections = get_detection_results(user_id, start_time, end_time)
     detections = get_detection_results(user_id, start_time, end_time)
     boundaries = get_boundaries()
     print(len(boundaries))
@@ -199,5 +307,9 @@ if __name__ == "__main__":
         print("Heatmaps created.")
 
         print(detection_count)
+
+        # Generate PDF report
+        generate_pdf_report(associated_results, detection_count, boundaries, "detection_report.pdf")
+        print("PDF report created.")
     else:
         print("No data to process.")
