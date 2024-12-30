@@ -58,7 +58,6 @@ class FindClosestEmbeddingView(APIView):
         ).order_by('distance').first()
 
         if closest_embedding:
-            
             result = {
                 "user_id": closest_embedding.user.id,
                 "user_name": closest_embedding.user.username,
