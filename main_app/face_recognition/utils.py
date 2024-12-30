@@ -27,9 +27,6 @@ def extract_embedding(photo, confidence_threshold=0.95):
             print(f"Face detected but confidence ({max_prob:.2f}) is below threshold ({confidence_threshold})")
             return None
             
-        # Get the index of the highest confidence face
-        max_prob_idx = probs.argmax()
-        
         # Extract the face with highest confidence
         cropped_face = mtcnn(photo)
         if cropped_face is None:
@@ -42,8 +39,10 @@ def extract_embedding(photo, confidence_threshold=0.95):
         # Pass through the face recognition model
         embedding = resnet(cropped_face.unsqueeze(0).to(_device)).detach().cpu()[0]
         
-        return embedding # Return both embedding and confidence score
+        return embedding 
         
     except Exception as e:
         print(f"Error extracting embedding: {e}")
         return None
+    
+
