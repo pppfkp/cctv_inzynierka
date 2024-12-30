@@ -6,3 +6,4 @@ admin.site.register(Camera)
 admin.site.register(Setting)
 admin.site.register(Boundary)
 admin.site.register(Zone)
+

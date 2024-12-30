@@ -21,6 +21,8 @@ from management.views import capture_camera_frame_for_boundaries_edit, save_boun
 from django.conf import settings
 from django.conf.urls.static import static
 
+from management.views import capture_camera_frame, save_calibration_points
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),
