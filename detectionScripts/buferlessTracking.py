@@ -157,14 +157,14 @@ async def main():
                     try:
                         # Create detection data 
                         detection_data = (
-                            user_id,                # Matches the first column: user_id
-                            CAMERA_ID,              # Matches the second column: camera_id
-                            track.track_id,         # Matches the third column: track_id
-                            now.strftime("%Y-%m-%d %H:%M:%S"),  # Matches the fourth column: time
-                            float(track.xywh[0]),   # Matches the fifth column: x_center
-                            float(track.xywh[1]),   # Matches the sixth column: y_center
-                            float(track.xywh[2]),   # Matches the seventh column: width
-                            float(track.xywh[3]),   # Matches the eighth column: height
+                            user_id,                # user_id
+                            CAMERA_ID,              # camera_id
+                            track.track_id,         # track_id
+                            now.strftime("%Y-%m-%d %H:%M:%S"),  # time
+                            float(track.xywh[0]),   # x_center
+                            float(track.xywh[1]),   # y_center
+                            float(track.xywh[2]),   # width
+                            float(track.xywh[3]),   # height
                         )
 
 
