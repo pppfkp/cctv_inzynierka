@@ -78,7 +78,7 @@ async def main():
     cap = open_camera(CAMERA_LINK, FRAME_WIDTH, FRAME_HEIGHT)
     last_save_time = time.time()  # Track the last time data was saved
     fps = FPS  # Target FPS for saving data
-    time_per_frame = 1.0 / fps  # Time per frame for 15 FPS
+    time_per_frame = 1.0 / fps 
 
     async with aiohttp.ClientSession() as session:
         while True:
@@ -100,7 +100,7 @@ async def main():
 
                 if filtered_boxes.shape[0] > 1:
                     try:
-                        tracked = tracker.update(filtered_boxes.cpu())
+                        tracker.update(filtered_boxes.cpu())
                     except IndexError:
                         print("index error")
 
