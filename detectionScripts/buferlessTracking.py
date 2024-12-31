@@ -155,7 +155,7 @@ async def main():
                         detection_data.to_csv(CSV_FILE, mode='a', index=False, header=False)
 
                     try:
-                        # Create detection data as a tuple in the exact order of the database schema
+                        # Create detection data 
                         detection_data = (
                             user_id,                # Matches the first column: user_id
                             CAMERA_ID,              # Matches the second column: camera_id
