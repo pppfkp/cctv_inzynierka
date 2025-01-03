@@ -49,3 +49,6 @@ class Boundary(models.Model):
     camera = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='boundaries')
     zone = models.ForeignKey(Zone, on_delete=models.CASCADE, related_name='boundaries')
     polygon = VectorField(dimensions=20)
+
+    class Meta:
+        verbose_name_plural = "Boundaries"
