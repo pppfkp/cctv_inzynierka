@@ -17,7 +17,7 @@ class BoundaryAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         if not obj.polygon:
-            obj.polygon = [100,100,300,100,500,100,500,200,500,300,300,300,100,300,100,200,100,100,300,100]
+            obj.polygon = [235,95,300,100,500,100,500,200,500,300,300,300,100,300,100,200,95,110,156,102]
         super().save_model(request, obj, form, change)
 
     # change_list_template = 'admin/boundary_change_list.html'
