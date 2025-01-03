@@ -47,7 +47,7 @@ class FindClosestEmbeddingView(APIView):
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
         # extract the embedding from the photo
-        embedding = extract_embedding(photo)  # Implement this method
+        embedding = extract_embedding(photo)  
 
         if embedding is None:
             return Response({"error": "Could not extract embedding from photo"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -58,7 +58,6 @@ class FindClosestEmbeddingView(APIView):
         ).order_by('distance').first()
 
         if closest_embedding:
-            # Serialize the result
             result = {
                 "user_id": closest_embedding.user.id,
                 "user_name": closest_embedding.user.username,
@@ -69,3 +68,4 @@ class FindClosestEmbeddingView(APIView):
             return Response(result, status=status.HTTP_200_OK)
         else:
             return Response({"error": "No embeddings found"}, status=status.HTTP_404_NOT_FOUND)
+        

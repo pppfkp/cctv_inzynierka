@@ -2,6 +2,7 @@ import json
 import aiohttp
 import cv2
 import requests
+from threading import Thread, Lock
 
 # config values for BOTSORT
 class Args:
@@ -117,3 +118,40 @@ async def send_frame_for_recognition(frame, session, request_link):
     except Exception as e:
         print(f"Error sending frame: {e}")
         return None, None, None    
+    
+class VideoStream:
+    def __init__(self, link, frame_width, frame_height):
+        self.stream = cv2.VideoCapture(link)
+        self.lock = Lock()
+        self.latest_frame = None
+        self.stopped = False
+
+        if self.stream.isOpened():
+            self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffering
+            self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
+            self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
+
+    def start(self):
+        Thread(target=self.update, args=(), daemon=True).start()
+        return self
+
+    def update(self):
+        while not self.stopped:
+            if self.stream.isOpened():
+                ret, frame = self.stream.read()
+                if ret:
+                    with self.lock:
+                        self.latest_frame = frame
+
+    def read(self):
+        with self.lock:
+            return self.latest_frame
+
+    def stop(self):
+        self.stopped = True
+        self.stream.release()
+
+def open_camera(link, frame_width, frame_heigth):
+    video_stream = VideoStream(link, frame_width, frame_heigth)
+    video_stream.start()
+    return video_stream

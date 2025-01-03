@@ -12,8 +12,7 @@ from datetime import datetime
 import torch
 import numpy as np
 import time
-from utils.trackingUtils import Args, TrackUpdate, cut_the_frame_from_bbox, detect_face, send_frame_for_recognition
-from threading import Thread, Lock
+from utils.trackingUtils import Args, TrackUpdate, cut_the_frame_from_bbox, detect_face, send_frame_for_recognition, open_camera
 
 # python buferlessTracking.py --camera_link rtsp://192.168.0.150 --camera_id 1 --fps_tracking 10 --batch_size 100 --face_detection_model yolov10n-face.pt --person_detection_model yolo11n.pt --face_similarity_treshold 0.7 --face_detection_treshold 0.4 --person_detection_treshold 0.6
 
@@ -47,38 +46,6 @@ FRAME_HEIGHT = 1080
 FPS = 10
 SAVE_TO_CSV_FILE = False
 
-class VideoStream:
-    def __init__(self, link):
-        self.stream = cv2.VideoCapture(link)
-        self.lock = Lock()
-        self.latest_frame = None
-        self.stopped = False
-
-        if self.stream.isOpened():
-            self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffering
-            self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
-            self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
-
-    def start(self):
-        Thread(target=self.update, args=(), daemon=True).start()
-        return self
-
-    def update(self):
-        while not self.stopped:
-            if self.stream.isOpened():
-                ret, frame = self.stream.read()
-                if ret:
-                    with self.lock:
-                        self.latest_frame = frame
-
-    def read(self):
-        with self.lock:
-            return self.latest_frame
-
-    def stop(self):
-        self.stopped = True
-        self.stream.release()
-
 # Draw bounding boxes and tracking data
 def visualize_tracks(frame, tracks):
     for track in tracks:
@@ -88,11 +55,6 @@ def visualize_tracks(frame, tracks):
         cv2.putText(frame, f"TRACK_ID: {track_id} USER_ID: {track_user_ids.get(track_id)}", 
                     (x - int(w / 2), y - int(h / 2) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     cv2.imshow("Tracking", frame)
-   
-def open_camera(link):
-    video_stream = VideoStream(link)
-    video_stream.start()
-    return video_stream
 
 # Dictionary to hold STrack ID and associated face embeddings
 track_user_ids = {}
@@ -106,8 +68,6 @@ columns = ["camera_link", 'track_id', "user_id", "date", "time", "x_center", "y_
 pd.DataFrame(columns=columns).to_csv(CSV_FILE, index=False, mode='w')
 botsort_args = Args()
 
-
-
 async def main():
     # Load the YOLO model
     tracking_model = YOLO(f"models/{TRACKING_MODEL}", verbose=False).to('cuda')
@@ -115,10 +75,10 @@ async def main():
     print(f"------------------------------------tracking model: {tracking_model.device}-----------------------------------------")
     tracker = BOTSORT(botsort_args)  # Initialize the BOTSORT tracker
 
-    cap = open_camera(CAMERA_LINK)
+    cap = open_camera(CAMERA_LINK, FRAME_WIDTH, FRAME_HEIGHT)
     last_save_time = time.time()  # Track the last time data was saved
     fps = FPS  # Target FPS for saving data
-    time_per_frame = 1.0 / fps  # Time per frame for 15 FPS
+    time_per_frame = 1.0 / fps 
 
     async with aiohttp.ClientSession() as session:
         while True:
@@ -140,7 +100,7 @@ async def main():
 
                 if filtered_boxes.shape[0] > 1:
                     try:
-                        tracked = tracker.update(filtered_boxes.cpu())
+                        tracker.update(filtered_boxes.cpu())
                     except IndexError:
                         print("index error")
 
@@ -195,16 +155,16 @@ async def main():
                         detection_data.to_csv(CSV_FILE, mode='a', index=False, header=False)
 
                     try:
-                        # Create detection data as a tuple in the exact order of the database schema
+                        # Create detection data 
                         detection_data = (
-                            user_id,                # Matches the first column: user_id
-                            CAMERA_ID,              # Matches the second column: camera_id
-                            track.track_id,         # Matches the third column: track_id
-                            now.strftime("%Y-%m-%d %H:%M:%S"),  # Matches the fourth column: time
-                            float(track.xywh[0]),   # Matches the fifth column: x_center
-                            float(track.xywh[1]),   # Matches the sixth column: y_center
-                            float(track.xywh[2]),   # Matches the seventh column: width
-                            float(track.xywh[3]),   # Matches the eighth column: height
+                            user_id,                # user_id
+                            CAMERA_ID,              # camera_id
+                            track.track_id,         # track_id
+                            now.strftime("%Y-%m-%d %H:%M:%S"),  # time
+                            float(track.xywh[0]),   # x_center
+                            float(track.xywh[1]),   # y_center
+                            float(track.xywh[2]),   # width
+                            float(track.xywh[3]),   # height
                         )
 
 

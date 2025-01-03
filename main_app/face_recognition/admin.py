@@ -15,7 +15,7 @@ class FaceEmbeddingAdmin(admin.ModelAdmin):
     readonly_fields = ('embedding',)
 
     def save_model(self, request, obj, form, change):
-        if 'photo' in form.changed_data:  # More robust check for photo change
+        if 'photo' in form.changed_data:  # check for photo change
             photo = form.cleaned_data['photo']
             embedding = extract_embedding(photo)
 
@@ -40,4 +40,4 @@ class FaceEmbeddingAdmin(admin.ModelAdmin):
 admin.site.register(FaceEmbedding, FaceEmbeddingAdmin)
 
 admin.site.register(Recognition)
-# admin.site.register(FaceEmbedding)
+

@@ -42,7 +42,13 @@ class Zone(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.CharField(max_length=255, null=True)
 
+    def __str__(self):
+        return f"{self.name}"
+
 class Boundary(models.Model):
     camera = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='boundaries')
     zone = models.ForeignKey(Zone, on_delete=models.CASCADE, related_name='boundaries')
     polygon = VectorField(dimensions=20)
+
+    class Meta:
+        verbose_name_plural = "Boundaries"
