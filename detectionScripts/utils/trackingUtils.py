@@ -155,4 +155,3 @@ def open_camera(link, frame_width, frame_heigth):
     video_stream = VideoStream(link, frame_width, frame_heigth)
     video_stream.start()
     return video_stream
-    

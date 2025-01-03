@@ -1,0 +1,140 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Edit Boundary: {{ boundary.zone.name }}</h1>
+
+<div>
+    <canvas id="cameraCanvas" width="640" height="480"></canvas>
+    <li id="boundary" class="boundary-item" data-polygon="{{ boundary.polygon }}" data-boundary-id="{{ boundary.id }}">
+        {{ boundary.zone.name }} (ID: {{ boundary.id }}) {{ boundary.polygon }}
+    </li>
+</div>
+
+<button id="savePointsButton">Save Points</button>
+
+<script>
+    const canvas = document.getElementById('cameraCanvas');
+    const ctx = canvas.getContext('2d');
+    const savePointsButton = document.getElementById('savePointsButton');
+
+    let points = [];
+    let isDragging = false;
+    let draggedPoint = null;
+
+    const polygon = document.getElementById("boundary").getAttribute('data-polygon');
+    const id = document.getElementById("boundary").getAttribute('data-boundary-id');
+    const parsedPolygon = parsePolygon(polygon);
+    init_points(parsedPolygon);
+
+    const image = new Image();
+    image.src = "data:image/jpeg;base64,{{ image_data }}";
+    image.onload = () => {
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        drawPolygon();
+    };
+
+    function init_points(polygon) {
+        for (let i = 0; i < polygon.length; i += 2) {
+            points.push({ x: polygon[i], y: polygon[i + 1] });
+        }
+    }
+    // Convert the flattened polygon to an array of points
+    function parsePolygon(polygonString) {
+        return polygonString
+            .replace(/[\[\]]/g, '')  // Remove square brackets if present
+            .split(' ')               // Split by spaces
+            .map(Number);             // Convert strings to numbers
+    }
+
+    function drawPolygon() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        ctx.beginPath();
+        points.forEach((point, index) => {
+            const x = point.x;
+            const y = point.y;
+
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            // ctx.fillStyle = 'red';
+            // ctx.fill();
+
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        ctx.closePath();
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+       // Event listeners for dragging functionality
+       canvas.addEventListener('mousedown', (e) => {
+            const mouseX = e.offsetX;
+            const mouseY = e.offsetY;
+
+            draggedPoint = null;
+            points.forEach((point, index) => {
+                const dist = Math.sqrt((mouseX - point.x) ** 2 + (mouseY - point.y) ** 2);
+                if (dist < 10) {
+                    draggedPoint = index;
+                    offsetX = mouseX - point.x;
+                    offsetY = mouseY - point.y;
+                }
+            });
+
+            if (draggedPoint !== null) {
+                isDragging = true;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging && draggedPoint !== null) {
+                const mouseX = e.offsetX;
+                const mouseY = e.offsetY;
+
+                points[draggedPoint].x = mouseX - offsetX;
+                points[draggedPoint].y = mouseY - offsetY;
+
+                drawPolygon(points.flatMap(p => [p.x, p.y]));
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            draggedPoint = null;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+            draggedPoint = null;
+        });
+
+    savePointsButton.addEventListener('click', () => {
+        const flattenedPoints = points.flatMap(p => [p.x, p.y]);
+
+            fetch(`/save-boundary/${id}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ points: flattenedPoints })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(`Error: ${data.error}`);
+                } else {
+                    alert('Boundary points updated successfully!');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving the points.');
+            });
+    });
+</script>
+{% endblock %}

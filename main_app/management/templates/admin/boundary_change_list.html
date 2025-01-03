@@ -1,0 +1,17 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block content %}
+<div>
+    <h1>Manage Boundaries</h1>
+    <p>You can edit boundary polygons directly here.</p>
+</div>
+<!-- <canvas id="boundaryCanvas" width="800" height="600"></canvas> -->
+
+<script>
+    // Add custom JavaScript here for handling boundary editing
+</script>
+
+<!-- Render the default admin content below -->
+{{ block.super }}
+{% endblock %}
