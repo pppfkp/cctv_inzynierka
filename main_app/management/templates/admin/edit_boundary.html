@@ -4,8 +4,8 @@
 
 <div>
     <canvas id="cameraCanvas" width="640" height="480"></canvas>
-    <li id="boundary" class="boundary-item" data-polygon="{{ boundary.polygon }}" data-boundary-id="{{ boundary.id }}">
-        {{ boundary.zone.name }} (ID: {{ boundary.id }}) {{ boundary.polygon }}
+    <li style="list-style: none;" id="boundary" class="boundary-item" data-polygon="{{ boundary.polygon }}" data-boundary-id="{{ boundary.id }}">
+        <!-- {{ boundary.zone.name }} (ID: {{ boundary.id }}) {{ boundary.polygon }} -->
     </li>
 </div>
 
@@ -41,8 +41,10 @@
     function parsePolygon(polygonString) {
         return polygonString
             .replace(/[\[\]]/g, '')  // Remove square brackets if present
-            .split(' ')               // Split by spaces
-            .map(Number);             // Convert strings to numbers
+            .replace(/\n/g, '')  // Remove newlines
+            .split(' ')          // Split by spaces
+            .filter(Boolean)     // Remove empty elements from the split
+            .map(Number);        // Convert strings to numbers
     }
 
     function drawPolygon() {

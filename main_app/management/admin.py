@@ -12,8 +12,15 @@ from django.utils.html import format_html
 from django.urls import reverse
 
 class BoundaryAdmin(admin.ModelAdmin):
-    list_display = ('zone', 'camera', 'edit_link'   )
-    change_list_template = 'admin/boundary_change_list.html'
+    list_display = ('zone', 'camera', 'edit_link')
+    exclude = ['polygon']
+
+    def save_model(self, request, obj, form, change):
+        if not obj.polygon:
+            obj.polygon = [100,100,300,100,500,100,500,200,500,300,300,300,100,300,100,200,100,100,300,100]
+        super().save_model(request, obj, form, change)
+
+    # change_list_template = 'admin/boundary_change_list.html'
 
     def edit_link(self, obj):
         return format_html(
