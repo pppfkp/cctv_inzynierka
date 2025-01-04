@@ -1,15 +1,13 @@
 from flask import Flask, Response
 import cv2
-from utils import open_camera, generate_frames
+from utils import open_camera, generate_frames, CAMERA_LINK
 import os
-
-camera_url = os.getenv("CAMERA_URL")
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Open the camera feed
-cap = open_camera(camera_url)
+cap = open_camera(CAMERA_LINK)
 
 @app.route('/video_feed')
 def video_feed():
@@ -18,3 +16,5 @@ def video_feed():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+    
+

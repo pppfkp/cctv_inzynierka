@@ -1,7 +1,67 @@
+import os
 from threading import Lock, Thread
 import cv2
+from psycopg2 import pool
 import torch
-import ultralytics
+from ultralytics import YOLO
+from ultralytics.trackers.bot_sort import BOTSORT
+
+CAMERA_LINK = os.getenv("CAMERA_LINK")
+BATCH_SIZE = int(os.getenv("BATCH_SIZE"))
+TRACKING_MODEL = os.getenv("TRACKING_MODEL")
+FACE_DETECTION_MODEL = os.getenv("FACE_DETECTION_MODEL")
+CAMERA_ID = int(os.getenv("CAMERA_ID"))
+FACE_SIMILARITY_THRESHOLD = float(os.getenv("FACE_SIMILARITY_THRESHOLD"))
+FACE_DETECTION_THRESHOLD = float(os.getenv("FACE_DETECTION_THRESHOLD"))
+PERSON_DETECTION_THRESHOLD = float(os.getenv("PERSON_DETECTION_THRESHOLD"))
+FACE_SIMILARITY_REQUEST_LINK =  os.getenv("FACE_SIMILARITY_REQUEST_LINK") # closest embedding request address
+FPS = int(os.getenv("FPS"))
+
+# Database connection settings from .env
+DB_SETTINGS = {
+    "host": os.getenv("PGVECTOR_DB_HOST"),
+    "port": int(os.getenv("PGVECTOR_DB_PORT")),
+    "dbname": os.getenv("PGVECTOR_DB_NAME"),
+    "user": os.getenv("PGVECTOR_DB_USER"),
+    "password": os.getenv("PGVECTOR_DB_PASSWORD"),
+}
+
+# Create a connection pool
+DB_POOL = pool.SimpleConnectionPool(
+    minconn=1,
+    maxconn=10,
+    **DB_SETTINGS
+)
+
+# config values for BOTSORT
+class BotsortArgs:
+    def __init__(self):
+        self.track_high_thresh = 0.5  
+        self.track_low_thresh = 0.1   
+        self.new_track_thresh = 0.3   
+        self.track_buffer = 30        
+        self.match_thresh = 0.8       
+        self.proximity_thresh = 0.8
+        self.appearance_thresh = 0.8
+        self.with_reid = True
+        self.gmc_method = 'sparseOptFlow'
+        self.fuse_score = True
+        self.verbose = False
+
+# Dictionary to hold STrack ID and associated face embeddings
+track_user_ids = {}
+
+# New dictionary to store last known position
+last_position = {}  
+
+# Batch for storing data
+data_batch = []
+
+tracking_model = YOLO(TRACKING_MODEL, verbose=False).to('cuda')
+face_model = YOLO(FACE_DETECTION_MODEL, verbose=False).to('cuda')
+tracker = BOTSORT(BotsortArgs())  # Initialize the BOTSORT tracker
+
+
 
 def test_cuda():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -54,19 +114,3 @@ def generate_frames(cap):
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
         
-def generate_frames(cap):
-    """Generate frames for the video feed with drawing."""
-    while True:
-        # Read frame from the camera
-        frame = cap.read()
-
-        # Example of drawing on the frame (e.g., drawing a rectangle and text)
-        cv2.rectangle(frame, (50, 50), (200, 200), (0, 255, 0), 3)  # Draw green rectangle
-        cv2.putText(frame, 'Hello World', (100, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)  # Add text
-
-        # Encode the altered frame to JPEG format
-        _, buffer = cv2.imencode('.jpg', frame)
-
-        # Yield the frame in a format suitable for streaming
-        yield (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')

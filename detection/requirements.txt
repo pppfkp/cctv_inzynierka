@@ -89,6 +89,7 @@ pandas==2.2.3
 pillow==10.2.0
 portalocker==3.1.1
 protobuf==3.20.3
+psycopg2-binary==2.9.10
 py-cpuinfo==9.0.0
 pyaml==25.1.0
 pybind11==2.13.6
