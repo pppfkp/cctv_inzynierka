@@ -26,21 +26,19 @@ services:
     volumes:
       - ./main_app:/usr/src/app  # Mount the Django app directory for live updates
       
-volumes:
-  pgvector_data:
-
-  # django-face-recognition-service:
+  # detection-service:
   #   build:
-  #     context: ./cctv_face_recognition_django_service
+  #     context: ./detection
   #     dockerfile: Dockerfile            
-  #   container_name: cctv-face-recognition-django-container
+  #   container_name: detection-container
   #   env_file: .env
-  #   ports:
-  #     - "8001:8000"
-  #   depends_on:
-  #     - pgvector-db
+  #   command: tail -f /dev/null
+  #   # ports:
+  #   #   - "8001:8000"
+  #   # depends_on:
+  #   #   - pgvector-db
   #   volumes:
-  #     - ./cctv_face_recognition_django_service:/usr/src/app  # Mount the Django app directory for live updates    
+  #     - ./detection:/usr/src/app  # Mount the Django app directory for live updates    
   #   deploy:
   #     resources:
   #       reservations:
@@ -48,5 +46,10 @@ volumes:
   #           - driver: nvidia
   #             count: 1 # alternatively, use `count: all` for all GPUs
   #             capabilities: [gpu]
+
+
+volumes:
+  pgvector_data:
+
 
 
