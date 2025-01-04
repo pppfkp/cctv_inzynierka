@@ -19,18 +19,16 @@ COPY . .
 
 CMD bash
 
-# docker run --gpus all -it \
-#   -v $(pwd):/usr/src/app \
-#   --network bridge \
-#   -p 5000:5000 \
-#   pytorch-nvidia-smi
+# windows
 
 # docker run --gpus all -it `
-#   -v ${PWD}:/usr/src/app `
-#   --network bridge `
-#   -p 5000:5000 `
-#   pytorch-nvidia-smi
+#     -v ${PWD}:/usr/src/app `
+#     --network bridge `
+#     -p 5000:5000 `
+#     --env-file .env `
+#     flask-ultralytics-gpu 
 
-# docker build -t pytorch-nvidia-smi .    
+# docker build -t flask-ultralytics-gpu .    
 
+# inside the container
 # pip freeze | grep -v "@" > requirements.txt
