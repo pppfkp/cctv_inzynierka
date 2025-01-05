@@ -70,9 +70,6 @@ track_user_ids = {}
 # New dictionary to store last known position
 last_position = {}  
 
-# Batch for storing data
-data_batch = []
-
 tracking_model = YOLO(TRACKING_MODEL, verbose=False).to('cuda')
 face_model = YOLO(FACE_DETECTION_MODEL, verbose=False).to('cuda')
 tracker = BOTSORT(BotsortArgs())  # Initialize the BOTSORT tracker

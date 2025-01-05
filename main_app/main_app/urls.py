@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from face_recognition.views import extract_embedding_view, FindClosestEmbeddingView
-from management.views import save_boundary_points
+from management.views import save_boundary_points, list_containers
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -26,6 +26,7 @@ urlpatterns = [
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),
     path('face_recognition/api/recognize/',FindClosestEmbeddingView.as_view()),
     path('save-boundary/<int:boundary_id>/', save_boundary_points, name='save_boundary'),
+    path('containers/', list_containers, name='list_containers'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

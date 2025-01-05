@@ -5,6 +5,7 @@ from django.shortcuts import render
 import cv2
 from django.views.decorators.csrf import csrf_exempt
 from .models import Camera, Boundary
+import docker
 
 @csrf_exempt  # Disable CSRF for simplicity; ensure proper security in production
 def save_boundary_points(request, boundary_id):
@@ -29,3 +30,21 @@ def save_boundary_points(request, boundary_id):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+def list_containers(request):
+    try:
+        # Initialize Docker client
+        client = docker.DockerClient(base_url='tcp://host.docker.internal:2375')
+        
+        # List all containers
+        containers = client.containers.list()
+
+        # Collect container names and statuses
+        container_data = [{
+            'name': container.name,
+            'status': container.status
+        } for container in containers]
+        
+        return JsonResponse({'containers': container_data})
+    except docker.errors.DockerException as e:
+        return JsonResponse({'error': f"Error connecting to Docker: {e}"}, status=500)

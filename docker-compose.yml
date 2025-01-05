@@ -21,6 +21,7 @@ services:
     container_name: main_app
     ports:
       - "${MAIN_APP_PORT}:8000"
+      - "2375:2375"
     depends_on:
       - pgvector-db
     volumes:
