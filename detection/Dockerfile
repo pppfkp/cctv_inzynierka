@@ -17,7 +17,8 @@ RUN pip install --no-deps --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-CMD bash
+# Run both Python scripts (stream.py in the background)
+CMD python stream.py & python process_frame.py
 
 # windows
 
