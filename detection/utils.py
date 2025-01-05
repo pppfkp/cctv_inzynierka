@@ -23,6 +23,7 @@ FACE_SIMILARITY_THRESHOLD = float(os.getenv("FACE_SIMILARITY_THRESHOLD"))
 FACE_DETECTION_THRESHOLD = float(os.getenv("FACE_DETECTION_THRESHOLD"))
 PERSON_DETECTION_THRESHOLD = float(os.getenv("PERSON_DETECTION_THRESHOLD"))
 FACE_SIMILARITY_REQUEST_LINK =  os.getenv("FACE_SIMILARITY_REQUEST_LINK") # closest embedding request address
+FACE_SIMILARITY_REQUEST_LINK =  "http://host.docker.internal:8000/face_recognition/api/recognize/"
 FPS = int(os.getenv("FPS"))
 TIME_PER_FRAME = 1.0 / FPS
 
@@ -164,7 +165,7 @@ def detect_face(img, face_model, threshold):
         return None          
     
 async def send_frame_for_recognition(frame, session, request_link):
-      # Encode the frame to JPEG
+    # Encode the frame to JPEG
     _, img_encoded = cv2.imencode('.jpg', frame)
     img_bytes = img_encoded.tobytes()
 
@@ -179,15 +180,23 @@ async def send_frame_for_recognition(frame, session, request_link):
 
     try:
         async with session.post(request_link, data=form) as response:
-            data = await response.json()
-            distance = data.get("distance", None)
-            user_id = data.get("user_id", None)
-            user_inside = data.get("user_inside")
-            print(f"face recognition distance: {distance} user_id: {user_id}")
-            return distance, user_id, user_inside
+            # Check for successful response (status code 200)
+            if response.status == 200:
+                # Parse JSON response
+                data = await response.json()
+                distance = data.get("distance", None)
+                user_id = data.get("user_id", None)
+                user_inside = data.get("user_inside")
+                print(f"face recognition distance: {distance} user_id: {user_id}")
+                return distance, user_id, user_inside
+            else:
+                print(f"Error: Server returned status code {response.status}")
+                html_content = await response.text()  # Get the raw HTML error page
+                print(html_content)
+                return None, None, None
     except Exception as e:
         print(f"Error sending frame: {e}")
-        return None, None, None       
+        return None, None, None  
 
 def generate_frames(cap):
     """Generate frames for the video feed."""
@@ -216,7 +225,7 @@ class StreamClient:
         self.client_socket = None
         self.connected = False
         
-    async def connect(self, retry_count=5, retry_delay=2):
+    async def connect(self, retry_count=9999999, retry_delay=2):
         for attempt in range(retry_count):
             try:
                 self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

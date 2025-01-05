@@ -98,6 +98,7 @@ async def main():
                             )
 
                             # You can store detection_data to a database here if needed
+                            print(detection_data)
 
                         except Exception as e:
                             print(f"Error in processing frame: {e}")
