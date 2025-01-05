@@ -5,17 +5,18 @@ import cv2
 import numpy as np
 import socket
 from datetime import datetime
-from utils import StreamClient, open_camera, CAMERA_LINK, TIME_PER_FRAME, tracking_model, PERSON_DETECTION_THRESHOLD, tracker, TrackUpdate, track_user_ids, last_position, cut_the_frame_from_bbox, detect_face, face_model, FACE_DETECTION_THRESHOLD, send_frame_for_recognition, FACE_SIMILARITY_REQUEST_LINK, FACE_SIMILARITY_THRESHOLD, CAMERA_ID, visualize_tracks
+from utils import BATCH_SIZE, StreamClient, open_camera, CAMERA_LINK, TIME_PER_FRAME, save_detections, tracking_model, PERSON_DETECTION_THRESHOLD, tracker, TrackUpdate, track_user_ids, last_position, cut_the_frame_from_bbox, detect_face, face_model, FACE_DETECTION_THRESHOLD, send_frame_for_recognition, FACE_SIMILARITY_REQUEST_LINK, FACE_SIMILARITY_THRESHOLD, CAMERA_ID, visualize_tracks
 
 # Initialize camera feed
 cap = open_camera(CAMERA_LINK)
-
-
 
 # Frame dimensions
 frame_width = 640
 frame_height = 480
 frame_shape = (frame_height, frame_width, 3)
+
+# Batch for storing data
+data_batch = []
 
 async def main():
     last_save_time = time.time()
@@ -107,6 +108,12 @@ async def main():
 
                     # Copy the frame to be visualized
                     processed_frame = visualize_tracks(frame, tracker.tracked_stracks, track_user_ids)
+
+                    data_batch.append(detection_data)
+
+                    if len(data_batch) >= BATCH_SIZE:
+                        save_detections(data_batch)
+                        data_batch.clear()
                 
                     # Send the processed frame
                     if not client.send_frame(processed_frame):
@@ -117,7 +124,10 @@ async def main():
                             break
     except KeyboardInterrupt:
         print("\nShutting down client...")
-    finally:
+    finally:  
+        if data_batch:
+            save_detections(data_batch)
+
         client.cleanup()
         cap.release()
 
