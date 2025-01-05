@@ -52,3 +52,12 @@ class Boundary(models.Model):
 
     class Meta:
         verbose_name_plural = "Boundaries"
+
+class CameraContainer(models.Model):
+    camera = models.OneToOneField('Camera', on_delete=models.CASCADE, related_name='container')
+    container_id = models.CharField(max_length=100)
+    port = models.IntegerField()
+    last_started = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'camera_containers'
