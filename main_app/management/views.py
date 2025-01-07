@@ -4,8 +4,9 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 import cv2
 from django.views.decorators.csrf import csrf_exempt
-from .models import Camera, Boundary, CameraContainer
+from .models import Camera, Boundary, CameraContainer, Setting
 import docker
+from django.conf import settings
 
 @csrf_exempt  # Disable CSRF for simplicity; ensure proper security in production
 def save_boundary_points(request, boundary_id):
@@ -52,46 +53,53 @@ def list_containers(request):
 
 def start_detection_containers(request):
     try:
+        # Initialize Docker client
         client = docker.DockerClient(base_url='tcp://host.docker.internal:2375')
+
+        # Fetch all cameras that are enabled
         cameras = Camera.objects.filter(enabled=True)
         base_port = 5000
-        
+
+        # Fetch only the needed settings once and store them as a dictionary
+        setting_dict = {setting.key: setting.value for setting in Setting.objects.all()}
+
         for i, camera in enumerate(cameras):
             container_port = base_port + i
-            
-            # Prepare environment variables for each camera
+
+            # Prepare environment variables from settings
             environment = {
                 'CAMERA_LINK': camera.link,
                 'CAMERA_ID': str(camera.id),
-                'BATCH_SIZE': '100',
-                'TRACKING_MODEL': 'yolo11n.pt',
-                'FACE_DETECTION_MODEL': 'yolov10n-face.pt',
-                'FACE_SIMILARITY_THRESHOLD': '0.7',
-                'FACE_DETECTION_THRESHOLD': '0.4',
-                'PERSON_DETECTION_THRESHOLD': '0.6',
-                'FACE_SIMILARITY_REQUEST_LINK': 'host.docker.internal:8000/face_recognition/api/recognize/',
-                'FPS': '10',
-                'PGVECTOR_DB_NAME': 'management',
-                'PGVECTOR_DB_USER': 'pppfkp',
-                'PGVECTOR_DB_PASSWORD': 'pppfkp123$',
-                'PGVECTOR_DB_HOST': 'host.docker.internal',
-                'PGVECTOR_DB_PORT': '5432'
+                'BATCH_SIZE': setting_dict.get("batchSizeDetectionsSave", "100"),
+                'TRACKING_MODEL': setting_dict.get("trackingModel", "yolo11n.pt"),
+                'FACE_DETECTION_MODEL': setting_dict.get("faceDetectionModel", "yolov10n-face.pt"),
+                'FACE_SIMILARITY_THRESHOLD': setting_dict.get("faceSimilarityTresholdTracking", "0.7"),
+                'FACE_DETECTION_THRESHOLD': setting_dict.get("faceDetectionTresholdTracking", "0.4"),
+                'PERSON_DETECTION_THRESHOLD': setting_dict.get("personDetectionTresholdTracking", "0.6"),
+                'FACE_SIMILARITY_REQUEST_LINK': setting_dict.get("detectionContainerFaceSimilarirtyRequestLink", "host.docker.internal:8000/face_recognition/api/recognize/"),
+                'FPS': setting_dict.get("fpsTracking", "10"),
+                'PGVECTOR_DB_NAME': getattr(settings, 'PGVECTOR_DB_NAME', 'management'),
+                'PGVECTOR_DB_USER': getattr(settings, 'PGVECTOR_DB_USER', 'pppfkp'),
+                'PGVECTOR_DB_PASSWORD': getattr(settings, 'PGVECTOR_DB_PASSWORD', 'pppfkp123$'),
+                'PGVECTOR_DB_HOST': setting_dict.get("detectionContainerDbHost", 'host.docker.internal'),
+                'PGVECTOR_DB_PORT': setting_dict.get("detectionContainerDbPort", '5432'),
             }
-            
+
             container_config = {
                 'image': 'pppfkp15/flask-ultralytics-gpu:2.0',
                 'detach': True,
                 'environment': environment,
-                'network_mode': 'bridge',
+                'network_mode': 'bridge',  # Adjust if necessary for inter-container communication
                 'ports': {'5000/tcp': ('0.0.0.0', container_port)},
                 'device_requests': [
                     docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])
                 ]
             }
-            
+
+            # Run container
             container = client.containers.run(**container_config)
-            
-            # Store or update container information
+
+            # Store or update container information for each camera
             CameraContainer.objects.update_or_create(
                 camera=camera,
                 defaults={
@@ -99,10 +107,11 @@ def start_detection_containers(request):
                     'port': container_port
                 }
             )
-            
-            
+
         return JsonResponse({'message': 'Containers started successfully'})
-        
+
+    except docker.errors.DockerException as e:
+        return JsonResponse({'error': f"Docker error: {e}"}, status=500)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
     
