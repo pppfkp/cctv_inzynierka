@@ -33,3 +33,5 @@ CMD python stream.py & python process_frame.py
 
 # inside the container
 # pip freeze | grep -v "@" > requirements.txt
+
+# docker tag flask-ultralytics-gpu pppfkp15/flask-ultralytics-gpu:3.0

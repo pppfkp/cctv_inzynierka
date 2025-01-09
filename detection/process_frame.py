@@ -99,7 +99,7 @@ async def main():
                             )
 
                             # You can store detection_data to a database here if needed
-                            print(detection_data)
+                            data_batch.append(detection_data)
 
                         except Exception as e:
                             print(f"Error in processing frame: {e}")
@@ -108,8 +108,6 @@ async def main():
 
                     # Copy the frame to be visualized
                     processed_frame = visualize_tracks(frame, tracker.tracked_stracks, track_user_ids)
-
-                    data_batch.append(detection_data)
 
                     if len(data_batch) >= BATCH_SIZE:
                         save_detections(data_batch)

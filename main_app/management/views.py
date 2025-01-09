@@ -4,12 +4,14 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 import cv2
 from django.views.decorators.csrf import csrf_exempt
-from .models import Camera, Boundary, CameraContainer, Setting
 import docker
+from django.apps import apps
 from django.conf import settings
+from .utils import start_detection_containers, restart_containers, stop_container
 
 @csrf_exempt  # Disable CSRF for simplicity; ensure proper security in production
 def save_boundary_points(request, boundary_id):
+    Boundary = apps.get_model('management', 'Boundary')
     if request.method == "POST":
         try:
             # Parse the JSON data from the request body
@@ -52,129 +54,33 @@ def list_containers(request):
     
 
 def start_detection_containers(request):
+    """
+    Django view to start detection containers.
+    """
     try:
-        # Initialize Docker client
-        client = docker.DockerClient(base_url='tcp://host.docker.internal:2375')
-
-        # Fetch all cameras that are enabled
-        cameras = Camera.objects.filter(enabled=True)
-        base_port = 5000
-
-        # Fetch only the needed settings once and store them as a dictionary
-        setting_dict = {setting.key: setting.value for setting in Setting.objects.all()}
-
-        for i, camera in enumerate(cameras):
-            container_port = base_port + i
-
-            # Prepare environment variables from settings
-            environment = {
-                'CAMERA_LINK': camera.link,
-                'CAMERA_ID': str(camera.id),
-                'BATCH_SIZE': setting_dict.get("batchSizeDetectionsSave", "100"),
-                'TRACKING_MODEL': setting_dict.get("trackingModel", "yolo11n.pt"),
-                'FACE_DETECTION_MODEL': setting_dict.get("faceDetectionModel", "yolov10n-face.pt"),
-                'FACE_SIMILARITY_THRESHOLD': setting_dict.get("faceSimilarityTresholdTracking", "0.7"),
-                'FACE_DETECTION_THRESHOLD': setting_dict.get("faceDetectionTresholdTracking", "0.4"),
-                'PERSON_DETECTION_THRESHOLD': setting_dict.get("personDetectionTresholdTracking", "0.6"),
-                'FACE_SIMILARITY_REQUEST_LINK': setting_dict.get("detectionContainerFaceSimilarirtyRequestLink", "host.docker.internal:8000/face_recognition/api/recognize/"),
-                'FPS': setting_dict.get("fpsTracking", "10"),
-                'PGVECTOR_DB_NAME': getattr(settings, 'PGVECTOR_DB_NAME', 'management'),
-                'PGVECTOR_DB_USER': getattr(settings, 'PGVECTOR_DB_USER', 'pppfkp'),
-                'PGVECTOR_DB_PASSWORD': getattr(settings, 'PGVECTOR_DB_PASSWORD', 'pppfkp123$'),
-                'PGVECTOR_DB_HOST': setting_dict.get("detectionContainerDbHost", 'host.docker.internal'),
-                'PGVECTOR_DB_PORT': setting_dict.get("detectionContainerDbPort", '5432'),
-            }
-
-            container_config = {
-                'image': 'pppfkp15/flask-ultralytics-gpu:2.0',
-                'detach': True,
-                'environment': environment,
-                'network_mode': 'bridge',  # Adjust if necessary for inter-container communication
-                'ports': {'5000/tcp': ('0.0.0.0', container_port)},
-                'device_requests': [
-                    docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])
-                ]
-            }
-
-            # Run container
-            container = client.containers.run(**container_config)
-
-            # Store or update container information for each camera
-            CameraContainer.objects.update_or_create(
-                camera=camera,
-                defaults={
-                    'container_id': container.id,
-                    'port': container_port
-                }
-            )
-
-        return JsonResponse({'message': 'Containers started successfully'})
-
-    except docker.errors.DockerException as e:
-        return JsonResponse({'error': f"Docker error: {e}"}, status=500)
+        result = start_detection_containers()
+        return JsonResponse({'message': result['message']})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-    
+
 def restart_containers(request):
+    """
+    Django view to restart containers.
+    """
     try:
-        client = docker.DockerClient(base_url='tcp://host.docker.internal:2375')
-        container_records = CameraContainer.objects.all()
-        
-        # First clean up any orphaned records
-        for container_record in container_records:
-            try:
-                # Check if camera still exists
-                camera_exists = Camera.objects.filter(id=container_record.camera_id).exists()
-                if not camera_exists:
-                    # If camera doesn't exist, delete the container record
-                    try:
-                        # Try to stop and remove container if it exists
-                        container = client.containers.get(container_record.container_id)
-                        container.stop(timeout=10)
-                        container.remove()
-                    except docker.errors.NotFound:
-                        pass  # Container already gone, which is fine
-                    container_record.delete()
-                    continue
-
-                # Camera exists, proceed with normal container operations
-                container = client.containers.get(container_record.container_id)
-                container.stop(timeout=10)
-                container.remove()
-                container_record.delete()
-                
-            except docker.errors.NotFound:
-                # Container not found, just delete the record
-                container_record.delete()
-            except Exception as e:
-                # Log any other errors but continue with other containers
-                print(f"Error handling container {container_record.container_id}: {e}")
-                # Still delete the record to maintain consistency
-                container_record.delete()
-
-        # Start new containers
-        return start_detection_containers(request)
-        
+        result = restart_containers()
+        return JsonResponse({'message': result['message']})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
 def stop_container(request, camera_id):
+    """
+    Django view to stop a container by camera ID.
+    """
     try:
-        client = docker.DockerClient(base_url='tcp://host.docker.internal:2375')
-        container_record = CameraContainer.objects.get(camera_id=camera_id)
-        
-        try:
-            container = client.containers.get(container_record.container_id)
-            container.stop(timeout=10)
-            container.remove()
-            container_record.delete()
-            return JsonResponse({'message': f'Container for camera {camera_id} stopped successfully'})
-        except docker.errors.NotFound:
-            container_record.delete()
-            return JsonResponse({'message': 'Container not found but record cleaned up'})
-            
-    except CameraContainer.DoesNotExist:
-        return JsonResponse({'error': 'No container found for this camera'}, status=404)
+        result = stop_container(camera_id=camera_id)
+        if 'error' in result:
+            return JsonResponse({'error': result['error']}, status=result.get('status', 500))
+        return JsonResponse({'message': result['message']})
     except Exception as e:
-        # logger.error(f"Error stopping container: {e}")
         return JsonResponse({'error': str(e)}, status=500)

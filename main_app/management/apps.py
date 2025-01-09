@@ -14,8 +14,8 @@ class ManagementConfig(AppConfig):
 
     def restart_containers(self):
         try:
-            from .views import restart_containers
-            restart_containers(None)  # Call the restart containers function
+            from .utils import restart_containers
+            restart_containers()  # Call the restart containers function
         except docker.errors.DockerException as e:
             logging.error(f"Error connecting to Docker: {e}")
         except Exception as ex:

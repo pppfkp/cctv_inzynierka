@@ -1,10 +1,12 @@
 import asyncio
 import json
 import os
+from queue import Queue
 import signal
 import socket
 import sys
 from threading import Lock, Thread
+import time
 import cv2
 import numpy as np
 from psycopg2 import pool
@@ -344,6 +346,103 @@ class StreamServer:
             print(f"Error receiving frame: {e}")
             return None
         
+class FrameBuffer:
+    def __init__(self, maxsize=10):
+        self.queue = Queue(maxsize=maxsize)
+        
+    def put_frame(self, frame):
+        if self.queue.full():
+            try:
+                self.queue.get_nowait()  # Remove oldest frame
+            except:
+                pass
+        self.queue.put(frame)
+        
+    def get_latest_frame(self):
+        if self.queue.empty():
+            return None
+        # Clear queue except for the latest frame
+        while self.queue.qsize() > 1:
+            self.queue.get()
+        return self.queue.queue[0]  # Peek at the latest frame without removing it
+
+class ImprovedStreamServer:
+    def __init__(self, host='localhost', port=12346):
+        self.host = host
+        self.port = port
+        self.server_socket = None
+        self.client_socket = None
+        self.frame_buffer = FrameBuffer()
+        self.running = True
+        self.setup_socket()
+        
+    def setup_socket(self):
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            self.server_socket.bind((self.host, self.port))
+            self.server_socket.listen(1)
+            print(f"Server listening on {self.host}:{self.port}")
+        except OSError as e:
+            print(f"Failed to bind to port {self.port}: {e}")
+            self.cleanup()
+            
+    def start_receiving(self):
+        """Start receiving frames in a separate thread"""
+        self.receive_thread = Thread(target=self._receive_frames)
+        self.receive_thread.daemon = True
+        self.receive_thread.start()
+        
+    def _receive_frames(self):
+        while self.running:
+            if not self.client_socket:
+                print("Waiting for client connection...")
+                try:
+                    self.client_socket, client_address = self.server_socket.accept()
+                    print(f"Client connected from {client_address}")
+                except Exception as e:
+                    print(f"Error accepting client connection: {e}")
+                    time.sleep(1)
+                    continue
+                    
+            try:
+                # Receive frame size
+                size_data = self.client_socket.recv(4)
+                if not size_data:
+                    self.client_socket = None
+                    continue
+                    
+                frame_size = int.from_bytes(size_data, byteorder='big')
+                
+                # Receive frame data
+                data = b""
+                while len(data) < frame_size:
+                    packet = self.client_socket.recv(min(frame_size - len(data), 4096))
+                    if not packet:
+                        break
+                    data += packet
+                    
+                # Decode and store frame
+                np_arr = np.frombuffer(data, dtype=np.uint8)
+                frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                self.frame_buffer.put_frame(frame)
+                
+            except Exception as e:
+                print(f"Error receiving frame: {e}")
+                self.client_socket = None
+                continue
+    
+    def get_frame(self):
+        """Get the latest frame from the buffer"""
+        return self.frame_buffer.get_latest_frame()
+        
+    def cleanup(self):
+        self.running = False
+        if self.client_socket:
+            self.client_socket.close()
+        if self.server_socket:
+            self.server_socket.close()
+
 def save_detections(data_batch):
     """
     Save a batch of detection data to the database.
