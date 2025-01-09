@@ -11,6 +11,18 @@ from .models import Boundary, Camera
 from django.utils.html import format_html
 from django.urls import reverse
 
+class CustomAdminSite(admin.AdminSite):
+    index_template = 'admin/custom_admin_template.html'
+
+# Register your custom admin site
+admin_site = CustomAdminSite(name='custom_admin')
+
+# Register your models with the custom admin site
+# admin_site.register(YourModel)
+
+# Replace the default admin site
+admin.site = admin_site
+
 class BoundaryAdmin(admin.ModelAdmin):
     list_display = ('zone', 'camera', 'edit_link')
     exclude = ['polygon']

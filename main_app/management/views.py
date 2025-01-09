@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 import docker
 from django.apps import apps
 from django.conf import settings
-from .utils import start_detection_containers, restart_containers, stop_container
+from .utils import start_detection_containers_logic, restart_containers_logic, stop_container_logic
 
 @csrf_exempt  # Disable CSRF for simplicity; ensure proper security in production
 def save_boundary_points(request, boundary_id):
@@ -58,7 +58,7 @@ def start_detection_containers(request):
     Django view to start detection containers.
     """
     try:
-        result = start_detection_containers()
+        result = start_detection_containers_logic()
         return JsonResponse({'message': result['message']})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -68,7 +68,7 @@ def restart_containers(request):
     Django view to restart containers.
     """
     try:
-        result = restart_containers()
+        result = restart_containers_logic()
         return JsonResponse({'message': result['message']})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -78,7 +78,7 @@ def stop_container(request, camera_id):
     Django view to stop a container by camera ID.
     """
     try:
-        result = stop_container(camera_id=camera_id)
+        result = stop_container_logic(camera_id=camera_id)
         if 'error' in result:
             return JsonResponse({'error': result['error']}, status=result.get('status', 500))
         return JsonResponse({'message': result['message']})

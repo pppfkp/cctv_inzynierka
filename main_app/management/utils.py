@@ -9,7 +9,7 @@ from django.apps import apps
 from django.conf import settings
 
 
-def start_detection_containers():
+def start_detection_containers_logic():
     try:
         # Dynamically load models to avoid circular imports
         Setting = apps.get_model('management', 'Setting')
@@ -84,7 +84,7 @@ def start_detection_containers():
         raise RuntimeError(f"Unexpected error: {e}")
     
 
-def restart_containers():
+def restart_containers_logic():
     try:
         # Dynamically load models to avoid circular imports
         Setting = apps.get_model('management', 'Setting')
@@ -130,12 +130,12 @@ def restart_containers():
                 container_record.delete()
 
         # Start new containers
-        return start_detection_containers()
+        return start_detection_containers_logic()
 
     except Exception as e:
         raise RuntimeError(f"Error restarting containers: {e}")
     
-def stop_container(camera_id):
+def stop_container_logic(camera_id):
     try:
         # Dynamically load models to avoid circular imports
         Setting = apps.get_model('app_name', 'Setting')

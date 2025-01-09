@@ -23,12 +23,12 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('restart_containers/', restart_containers, name='restart_containers'),
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),
     path('face_recognition/api/recognize/',FindClosestEmbeddingView.as_view()),
     path('save-boundary/<int:boundary_id>/', save_boundary_points, name='save_boundary'),
     path('list_containers/', list_containers, name='list_containers'),
     path('start_containers/', start_detection_containers, name='start_detection_containers'),
-    path('restart_containers/', restart_containers, name='restart_detection_containers'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
