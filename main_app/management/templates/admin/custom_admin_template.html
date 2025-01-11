@@ -1,0 +1,91 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .restart-button {
+        color: white;
+        text-decoration: none;
+        padding: 10px 15px;
+    }
+    .restart-button:hover {
+        background-color: #2d5066;
+    }
+    #message-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px;
+        border-radius: 4px;
+        display: none;
+        z-index: 1000;
+    }
+    .success {
+        background-color: #dff0d8;
+        border: 1px solid #d6e9c6;
+        color: #3c763d;
+    }
+    .error {
+        background-color: #f2dede;
+        border: 1px solid #ebccd1;
+        color: #a94442;
+    }
+</style>
+{% endblock %}
+
+{% block usertools %}
+    {{ block.super }}
+    <div id="message-container"></div>
+    <nav class="restart-nav">
+        <a href="#" 
+           class="restart-button" 
+           id="restartButton"
+           onclick="return handleRestart(event)">
+           Restart Containers
+        </a>
+    </nav>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        window.handleRestart = function(event) {
+            event.preventDefault();
+            const messageContainer = document.getElementById('message-container');
+            const button = document.getElementById('restartButton');
+            
+            button.style.pointerEvents = 'none';
+            button.style.opacity = '0.5';
+            
+            fetch('{% url "restart_containers" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                messageContainer.style.display = 'block';
+                messageContainer.className = data.error ? 'error' : 'success';
+                messageContainer.textContent = data.message || data.error;
+            })
+            .catch(error => {
+                messageContainer.style.display = 'block';
+                messageContainer.className = 'error';
+                messageContainer.textContent = 'Error restarting containers.';
+            })
+            .finally(() => {
+                button.style.pointerEvents = 'auto';
+                button.style.opacity = '1';
+                setTimeout(() => {
+                    messageContainer.style.display = 'none';
+                }, 5000);
+            });
+            
+            return false;
+        };
+    });
+</script>
+{% endblock %}

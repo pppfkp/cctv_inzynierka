@@ -1,8 +1,11 @@
 from django.db import models
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from pgvector.django import VectorField
+import logging
+
+from .utils import restart_containers_logic
 
 # Create your models here.
 class TrackingSubject(models.Model):
@@ -17,11 +20,20 @@ def create_tracking_subjects(sender, instance, created, **kwargs):
 class Camera(models.Model):
     link = models.CharField(max_length=500, unique=True)
     name = models.CharField(max_length=200, unique=True)
-    enabled = models.BooleanField(default=True)
-    transformation_matrix = VectorField(dimensions=9, null=True, blank=True)
 
     def __str__(self):
         return f"{self.name}: {self.link}"
+    
+# Signal handler for Camera changes
+@receiver(post_save, sender=Camera)
+@receiver(post_delete, sender=Camera)
+def camera_changed(sender, instance, **kwargs):
+    try:
+        # Restart containers when Camera changes
+        restart_containers_logic()
+        logging.info(f"Containers restarted due to Camera changes: {instance.name}")
+    except Exception as e:
+        logging.error(f"Error restarting containers after Camera change: {e}")
     
 class Setting(models.Model):
     key = models.CharField(max_length=100, unique=True)
@@ -37,6 +49,17 @@ class Setting(models.Model):
 
     def __str__(self):
         return f"{self.key}: {self.value}" 
+
+# Signal handler for Setting changes
+@receiver(post_save, sender=Setting)
+@receiver(post_delete, sender=Setting)
+def setting_changed(sender, instance, **kwargs):
+    try:
+        # Restart containers when Setting changes
+        restart_containers_logic()
+        logging.info(f"Containers restarted due to Setting changes: {instance.key}")
+    except Exception as e:
+        logging.error(f"Error restarting containers after Setting change: {e}")
     
 class Zone(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -52,3 +75,12 @@ class Boundary(models.Model):
 
     class Meta:
         verbose_name_plural = "Boundaries"
+
+class CameraContainer(models.Model):
+    camera = models.OneToOneField('Camera', on_delete=models.CASCADE, related_name='container')
+    container_id = models.CharField(max_length=100)
+    port = models.IntegerField()
+    last_started = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'camera_containers'
