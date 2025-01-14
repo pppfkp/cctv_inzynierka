@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 import cv2
@@ -46,9 +47,9 @@ def start_detection_containers_logic():
                     "host.docker.internal:8000/face_recognition/api/recognize/"
                 ),
                 'FPS': setting_dict.get("fpsTracking", "10"),
-                'PGVECTOR_DB_NAME': getattr(settings, 'PGVECTOR_DB_NAME', 'management'),
-                'PGVECTOR_DB_USER': getattr(settings, 'PGVECTOR_DB_USER', 'pppfkp'),
-                'PGVECTOR_DB_PASSWORD': getattr(settings, 'PGVECTOR_DB_PASSWORD', 'pppfkp123$'),
+                'PGVECTOR_DB_NAME': os.getenv('PGVECTOR_DB_NAME'),
+                'PGVECTOR_DB_USER': os.getenv('PGVECTOR_DB_USER'),
+                'PGVECTOR_DB_PASSWORD': os.getenv('PGVECTOR_DB_PASSWORD'),
                 'PGVECTOR_DB_HOST': setting_dict.get("detectionContainerDbHost", 'host.docker.internal'),
                 'PGVECTOR_DB_PORT': setting_dict.get("detectionContainerDbPort", '5432'),
             }
