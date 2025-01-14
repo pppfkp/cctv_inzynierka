@@ -15,6 +15,12 @@ services:
       - ./init_pgvector.sql:/docker-entrypoint-initdb.d/init_pgvector.sql # initialze the vector extension
 
   main-app:
+    environment:
+      PGVECTOR_DB_USER: ${PGVECTOR_DB_USER}
+      PGVECTOR_DB_PASSWORD: ${PGVECTOR_DB_PASSWORD}
+      PGVECTOR_DB_NAME: ${PGVECTOR_DB_NAME}
+      PGVECTOR_DB_HOST: ${PGVECTOR_DB_HOST}
+      PGVECTOR_DB_PORT: ${PGVECTOR_DB_PORT}
     build:
       context: ./main_app
       dockerfile: Dockerfile            
