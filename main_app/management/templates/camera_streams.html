@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Streams</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px;
+        }
+        .stream {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+        .stream div {
+            width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Camera Streams</h1>
+    <div class="grid">
+        {% for stream in streams %}
+        <div class="stream">
+            <h2>Camera ID: {{ stream.camera_id }}</h2>
+            <div class="video">
+                <img id="videoFeed" src="{{ stream.video_feed_url }}" alt="Video Stream" height="1080" width="1920">
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

@@ -84,3 +84,20 @@ def stop_container(request, camera_id):
         return JsonResponse({'message': result['message']})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+def camera_streams_view(request):
+    CameraContainer = apps.get_model('management', 'CameraContainer')
+    # Fetch all camera containers
+    containers = CameraContainer.objects.all()
+    
+    # Prepare video feed URLs
+    streams = [
+        {
+            "camera_id": container.camera.id,
+            "video_feed_url": f"http://127.0.0.1:{container.port}/video_feed"
+        }
+        for container in containers
+    ]
+    
+    # Render the template with streams data
+    return render(request, 'camera_streams.html', {'streams': streams})
