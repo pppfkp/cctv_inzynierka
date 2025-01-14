@@ -20,6 +20,7 @@ def create_tracking_subjects(sender, instance, created, **kwargs):
 class Camera(models.Model):
     link = models.CharField(max_length=500, unique=True)
     name = models.CharField(max_length=200, unique=True)
+    enabled = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.name}: {self.link}"
