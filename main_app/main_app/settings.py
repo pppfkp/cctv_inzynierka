@@ -33,7 +33,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     'host.docker.internal',
-    'localhost'
+    'localhost',
+    'entry-app',
+    'main-app'
 ]
 
 # Application definition

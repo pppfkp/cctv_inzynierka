@@ -35,31 +35,34 @@ services:
       - pgvector-db
     volumes:
       - ./main_app:/usr/src/app  # Mount the Django app directory for live updates
-      
-  # detection-service:
-  #   build:
-  #     context: ./detection
-  #     dockerfile: Dockerfile            
-  #   container_name: detection-container
-  #   env_file: .env
-  #   command: tail -f /dev/null
-  #   # ports:
-  #   #   - "8001:8000"
-  #   # depends_on:
-  #   #   - pgvector-db
-  #   volumes:
-  #     - ./detection:/usr/src/app  # Mount the Django app directory for live updates    
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1 # alternatively, use `count: all` for all GPUs
-  #             capabilities: [gpu]
 
+  entry-app:
+    build:
+      context: ./entry
+      dockerfile: Dockerfile
+    container_name: entry_app
+    environment:
+      # Reuse existing database environment variables
+      PGVECTOR_DB_USER: ${PGVECTOR_DB_USER}
+      PGVECTOR_DB_PASSWORD: ${PGVECTOR_DB_PASSWORD}
+      PGVECTOR_DB_NAME: ${PGVECTOR_DB_NAME}
+      PGVECTOR_DB_HOST: ${PGVECTOR_DB_HOST}
+      PGVECTOR_DB_PORT: ${PGVECTOR_DB_PORT}
+      FACE_SIMILARITY_REQUEST_LINK: "http://main-app:8000/face_recognition/api/recognize/"
+    ports:
+      - "${ENTRY_APP_PORT}:5000"
+    volumes:
+      - ./entry:/app
+    depends_on:
+      - pgvector-db
+      - main-app
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
 volumes:
   pgvector_data:
-
-
-
