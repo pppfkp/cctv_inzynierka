@@ -12,7 +12,8 @@ class FaceEmbedding(models.Model):
         return f"FaceEmbedding for {self.user}"
     
 class Recognition(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recognitions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recognitions', null=True)
     distance = models.FloatField()
     time = models.DateTimeField()
+    photo =  models.ImageField(upload_to='recognition_face_photos/', null=True, blank=False)
 

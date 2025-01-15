@@ -1,10 +1,14 @@
 import base64
+from django.utils import timezone
+import os
+import uuid
 from django.shortcuts import render
 from django.http import JsonResponse
 from PIL import Image
 from io import BytesIO
+from django.conf import settings
 
-from .models import FaceEmbedding
+from .models import FaceEmbedding, Recognition
 from .utils import extract_embedding
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -41,29 +45,51 @@ def extract_embedding_view(request):
 
 class FindClosestEmbeddingView(APIView):
     def post(self, request):
-        # get the photo
+        # Get the photo
         photo = request.FILES.get('file') 
         if not photo:
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # extract the embedding from the photo
-        embedding = extract_embedding(photo)  
+        # Extract the embedding and cropped face from the photo
+        embedding, cropped_face = extract_embedding(photo)
 
-        if embedding is None:
+        if embedding is None or cropped_face is None:
             return Response({"error": "Could not extract embedding from photo"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # find the closest match taking advantage of the pg-vector built-in l2 distance
+        # Create directory if it doesn't exist
+        directory = os.path.join(settings.MEDIA_ROOT, "recognition_face_photos")
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        # Save the cropped face as an image file
+        cropped_face_image = Image.fromarray(cropped_face.mul(255).permute(1, 2, 0).byte().numpy())
+        cropped_face_filename = f"{uuid.uuid4().hex}.jpg"
+        cropped_face_path = os.path.join(directory, cropped_face_filename)
+        cropped_face_image.save(cropped_face_path)
+        print(f"Image saved at {cropped_face_path}")
+
+        # Find the closest match using pg-vector's L2 distance
         closest_embedding = FaceEmbedding.objects.annotate(
             distance=L2Distance("embedding", embedding)
         ).order_by('distance').first()
 
+        # Prepare the recognition data
         if closest_embedding:
+            user = closest_embedding.user
+            distance = closest_embedding.distance
+            # Save recognition data
+            Recognition.objects.create(
+                user=user,
+                distance=distance,
+                time=timezone.now(),
+                photo=os.path.join("recognition_face_photos", cropped_face_filename)
+            )
             result = {
-                "user_id": closest_embedding.user.id,
-                "user_name": closest_embedding.user.username,
-                "user_inside": closest_embedding.user.trackingsubject.is_inside,
+                "user_id": user.id,
+                "user_name": user.username,
+                "user_inside": user.trackingsubject.is_inside,
                 "embedding_id": closest_embedding.id,
-                "distance": closest_embedding.distance,
+                "distance": distance,
             }
             return Response(result, status=status.HTTP_200_OK)
         else:
