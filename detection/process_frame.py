@@ -11,8 +11,8 @@ from utils import BATCH_SIZE, StreamClient, open_camera, CAMERA_LINK, TIME_PER_F
 cap = open_camera(CAMERA_LINK)
 
 # Frame dimensions
-frame_width = 640
-frame_height = 480
+frame_width = 1920
+frame_height = 1080
 frame_shape = (frame_height, frame_width, 3)
 
 # Batch for storing data
