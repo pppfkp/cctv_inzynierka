@@ -3,17 +3,17 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-2xl font-bold mb-6">Detection Statistics</h1>
-    
+
     <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
         <form method="post" class="space-y-4">
             {% csrf_token %}
-            
+
             {% if form.non_field_errors %}
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                 {{ form.non_field_errors }}
             </div>
             {% endif %}
-            
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="form-group">
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="{{ form.start_time.id_for_label }}">
@@ -24,7 +24,7 @@
                     <p class="text-red-500 text-xs italic">{{ form.start_time.errors }}</p>
                     {% endif %}
                 </div>
-                
+
                 <div class="form-group">
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="{{ form.end_time.id_for_label }}">
                         End Time
@@ -34,7 +34,7 @@
                     <p class="text-red-500 text-xs italic">{{ form.end_time.errors }}</p>
                     {% endif %}
                 </div>
-                
+
                 <div class="form-group">
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="{{ form.camera_id.id_for_label }}">
                         Camera
@@ -45,75 +45,115 @@
                     {% endif %}
                 </div>
             </div>
-            
+
             <div class="flex items-center justify-end">
-                <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+                <button
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    type="submit">
                     Search
                 </button>
             </div>
         </form>
     </div>
-    
+
     {% if search_performed and stats %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <!-- Total Detections Card -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Detections</h3>
-                <p class="text-3xl font-bold text-blue-600">{{ stats.total_detections }}</p>
-            </div>
-            
-            <!-- Recognized Detections Card -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Recognized</h3>
-                <p class="text-3xl font-bold text-green-600">{{ stats.recognized_detections }}</p>
-            </div>
-            
-            <!-- Unrecognized Detections Card -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Unrecognized</h3>
-                <p class="text-3xl font-bold text-red-600">{{ stats.unrecognized_detections }}</p>
-            </div>
-            
-            <!-- Recognition Rate Card -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Recognition Rate</h3>
-                <p class="text-3xl font-bold text-purple-600">
-                    {% if stats.total_detections > 0 %}
-                        {{ stats.recognized_detections|div:stats.total_detections|multiply:100|floatformat:1 }}%
-                    {% else %}
-                        0%
-                    {% endif %}
-                </p>
-            </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- Total Detections Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Detections</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ stats.total_detections }}</p>
         </div>
 
-        {% if detections_per_user %}
-            <div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
-                <h2 class="text-xl font-bold mb-4">Detections per User</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full table-auto">
-                        <thead>
-                            <tr class="bg-gray-100">
-                                <th class="px-4 py-2 text-left">User ID</th>
-                                <th class="px-4 py-2 text-left">Username</th>
-                                <th class="px-4 py-2 text-left">Email</th>
-                                <th class="px-4 py-2 text-right">Detection Count</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in detections_per_user %}
-                            <tr class="{% cycle 'bg-white' 'bg-gray-50' %}">
-                                <td class="px-4 py-2">{{ item.user.id }}</td>
-                                <td class="px-4 py-2">{{ item.user.username }}</td>
-                                <td class="px-4 py-2">{{ item.user.email }}</td>
-                                <td class="px-4 py-2 text-right font-semibold">{{ item.count }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        {% endif %}
+        <!-- Recognized Detections Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Recognized</h3>
+            <p class="text-3xl font-bold text-green-600">{{ stats.recognized_detections }}</p>
+        </div>
+
+        <!-- Unrecognized Detections Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Unrecognized</h3>
+            <p class="text-3xl font-bold text-red-600">{{ stats.unrecognized_detections }}</p>
+        </div>
+
+        <!-- Recognition Rate Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Recognition Rate</h3>
+            <p class="text-3xl font-bold text-purple-600">
+                {% if stats.total_detections > 0 %}
+                {{ stats.recognized_detections|div:stats.total_detections|multiply:100|floatformat:1 }}%
+                {% else %}
+                0%
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    {% if detections_per_user %}
+    <div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
+        <h2 class="text-xl font-bold mb-4">Detections per User</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full table-auto">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="px-4 py-2 text-left">User ID</th>
+                        <th class="px-4 py-2 text-left">Username</th>
+                        <th class="px-4 py-2 text-left">Email</th>
+                        <th class="px-4 py-2 text-right">Detection Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in detections_per_user %}
+                    <tr class="{% cycle 'bg-white' 'bg-gray-50' %}">
+                        <td class="px-4 py-2">{{ item.user.id }}</td>
+                        <td class="px-4 py-2">{{ item.user.username }}</td>
+                        <td class="px-4 py-2">{{ item.user.email }}</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ item.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
     {% endif %}
+    {% endif %}
+
+    {% if search_performed and stats %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- Recognition Statistics -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Recognitions</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ stats.total_recognitions }}</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Average Distance (All)</h3>
+            <p class="text-3xl font-bold text-green-600">{{ stats.avg_distance_all|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
+        <h2 class="text-xl font-bold mb-4">Average Recognition Distance per User</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full table-auto">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="px-4 py-2 text-left">User</th>
+                        <th class="px-4 py-2 text-right">Average Distance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in avg_distance_per_user %}
+                    <tr class="{% cycle 'bg-white' 'bg-gray-50' %}">
+                        <td class="px-4 py-2">{{ item.user.username }}</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ item.avg_distance|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}

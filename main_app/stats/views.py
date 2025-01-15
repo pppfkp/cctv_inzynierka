@@ -52,14 +52,11 @@ class DetectionSearchView(FormView):
         end_time = form.cleaned_data['end_time']
         camera_id = form.cleaned_data.get('camera_id')
         
-        # Get statistics and users
         stats = get_detection_statistics(start_time, end_time, camera_id)
         user_objects = User.objects.filter(id__in=stats['detections_per_user'].values('user'))
         
-        # Create a mapping of user_id to user object for easy lookup
         user_map = {user.id: user for user in user_objects}
         
-        # Enhance detections_per_user with user details
         detections_per_user = []
         for detection in stats['detections_per_user']:
             user = user_map.get(detection['user'])
@@ -69,11 +66,21 @@ class DetectionSearchView(FormView):
                     'count': detection['detection_count']
                 })
         
+        avg_distance_per_user = []
+        for item in stats['avg_distance_per_user']:
+            user = user_map.get(item['user'])
+            if user:
+                avg_distance_per_user.append({
+                    'user': user,
+                    'avg_distance': item['avg_distance']
+                })
+        
         context = {
             'form': form,
             'search_performed': True,
             'stats': stats,
-            'detections_per_user': detections_per_user
+            'detections_per_user': detections_per_user,
+            'avg_distance_per_user': avg_distance_per_user
         }
         
         return render(self.request, self.template_name, context)
