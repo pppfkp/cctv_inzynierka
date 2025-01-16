@@ -27,7 +27,7 @@ services:
     build:
       context: ./main_app
       dockerfile: Dockerfile            
-    container_name: main_app
+    container_name: main-app-container
     ports:
       - "${MAIN_APP_PORT}:8000"
       - "2375:2375"
@@ -40,7 +40,7 @@ services:
     build:
       context: ./entry
       dockerfile: Dockerfile
-    container_name: entry_app
+    container_name: entry-app-container
     environment:
       # Reuse existing database environment variables
       PGVECTOR_DB_USER: ${PGVECTOR_DB_USER}

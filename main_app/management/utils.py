@@ -8,7 +8,31 @@ from django.views.decorators.csrf import csrf_exempt
 import docker
 from django.apps import apps
 from django.conf import settings
+import logging
+import requests
 
+
+logger = logging.getLogger(__name__)
+
+
+def update_entry_app_thresholds():
+    """
+    Send POST request to entry-app to update thresholds
+    """
+    try:
+        entry_app_url = f"http://entry-app:5000"  
+        response = requests.post(f"{entry_app_url}/update_thresholds")
+        
+        if response.status_code == 200:
+            logging.info("Successfully updated thresholds in entry-app")
+            logging.info(f"Response: {response.json()}")
+        else:
+            logging.error(f"Failed to update thresholds. Status code: {response.status_code}")
+            logging.error(f"Response: {response.text}")
+            
+    except Exception as e:
+        logging.error(f"Error updating thresholds in entry-app: {e}")
+        raise
 
 def start_detection_containers_logic():
     try:

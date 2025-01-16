@@ -6,9 +6,11 @@ import base64
 from utils import (
     DatabaseManager,
     FaceRecognition,
-    FACE_SIMILARITY_THRESHOLD,
     FACE_SIMILARITY_REQUEST_LINK
 )
+
+FACE_SIMILARITY_THRESHOLD = 2.0
+FACE_DETECTION_THRESHOLD = 2.0
 
 app = Flask(__name__)
 
@@ -60,6 +62,41 @@ def recognize_entry():
                 })
     except Exception as e:
         return jsonify({"status": "error", "message": f"Error processing image: {str(e)}"})
+    
+
+@app.route('/update_thresholds', methods=['POST'])
+def update_thresholds():
+    try:
+        # Get threshold values from database
+        face_similarity, face_detection = DatabaseManager.get_threshold_settings()
+        
+        if face_similarity is None or face_detection is None:
+            return jsonify({
+                "status": "error",
+                "message": "Could not retrieve threshold settings from database"
+            })
+            
+        # Update global variables
+        global FACE_SIMILARITY_THRESHOLD
+        global FACE_DETECTION_THRESHOLD
+        
+        FACE_SIMILARITY_THRESHOLD = face_similarity
+        FACE_DETECTION_THRESHOLD = face_detection
+        
+        return jsonify({
+            "status": "success",
+            "message": "Thresholds updated successfully",
+            "data": {
+                "face_similarity_threshold": FACE_SIMILARITY_THRESHOLD,
+                "face_detection_threshold": FACE_DETECTION_THRESHOLD
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Error updating thresholds: {str(e)}"
+        })
 
 @app.route('/recognize_exit', methods=['POST'])
 def recognize_exit():
@@ -97,6 +134,7 @@ def recognize_exit():
                 })
     except Exception as e:
         return jsonify({"status": "error", "message": f"Error processing image: {str(e)}"})
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

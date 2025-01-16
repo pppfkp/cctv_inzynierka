@@ -12,8 +12,6 @@ load_dotenv()
 
 # Environment variables
 FACE_DETECTION_MODEL = "yolov10n-face.pt"
-FACE_SIMILARITY_THRESHOLD = 2.0
-FACE_DETECTION_THRESHOLD = 2.0
 FACE_SIMILARITY_REQUEST_LINK = os.getenv("FACE_SIMILARITY_REQUEST_LINK")
 
 # Database connection settings
@@ -106,6 +104,48 @@ class DatabaseManager:
             print(f"Set is_inside for user_id {user_id} to {status}")
         except Exception as e:
             print(f"Error updating is_inside for user_id {user_id}: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                DB_POOL.putconn(conn)
+
+    @staticmethod
+    def get_threshold_settings():
+        """
+        Fetch threshold settings from the management_setting table.
+        Returns a tuple of (face_similarity_threshold, face_detection_threshold)
+        """
+        try:
+            conn = DB_POOL.getconn()
+            cursor = conn.cursor()
+            
+            # Query for both threshold settings
+            query = """
+            SELECT key, value, data_type
+            FROM management_setting
+            WHERE key IN ('faceSimilarityTresholdEnterExit', 'faceDetectionTresholdEnterExit')
+            """
+            
+            cursor.execute(query)
+            settings = cursor.fetchall()
+            
+            # Initialize default values
+            face_similarity = None
+            face_detection = None
+            
+            # Process settings based on data type
+            for key, value, data_type in settings:
+                if key == 'faceSimilarityTresholdEnterExit':
+                    face_similarity = float(value) if data_type == 'float' else None
+                elif key == 'faceDetectionTresholdEnterExit':
+                    face_detection = float(value) if data_type == 'float' else None
+            
+            return face_similarity, face_detection
+            
+        except Exception as e:
+            print(f"Error fetching threshold settings: {e}")
+            return None, None
         finally:
             if cursor:
                 cursor.close()
