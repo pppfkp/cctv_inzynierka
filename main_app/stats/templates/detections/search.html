@@ -44,16 +44,6 @@
                     <p class="text-red-500 text-xs italic">{{ form.visualization_type.errors }}</p>
                     {% endif %}
                 </div>
-
-                <div class="form-group">
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="{{ form.camera_id.id_for_label }}">
-                        Camera
-                    </label>
-                    {{ form.camera_id }}
-                    {% if form.camera_id.errors %}
-                    <p class="text-red-500 text-xs italic">{{ form.camera_id.errors }}</p>
-                    {% endif %}
-                </div>
             </div>
 
             <div class="flex items-center justify-end">

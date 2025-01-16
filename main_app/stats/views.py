@@ -1,15 +1,11 @@
-# stats/views.py
 import base64
 from django.shortcuts import render
 from django.views.generic import FormView
 from django import forms
 from datetime import datetime, timedelta
-from django.apps import apps
 import cv2
 
 from .utils import generate_heatmap, get_detection_statistics, plot_points, plot_bounding_boxes
-
-Camera = apps.get_model('management', 'Camera')
 
 class DetectionSearchForm(forms.Form):
     VISUALIZATION_CHOICES = [
@@ -26,18 +22,11 @@ class DetectionSearchForm(forms.Form):
         widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
         initial=datetime.now()
     )
-    camera_id = forms.ChoiceField(required=False)
     visualization_type = forms.ChoiceField(
         choices=VISUALIZATION_CHOICES,
         initial='heatmap',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        cameras = Camera.objects.filter(enabled=True)
-        camera_choices = [('', 'All Cameras')] + [(str(c.id), c.name) for c in cameras]
-        self.fields['camera_id'].choices = camera_choices
 
     def clean(self):
         cleaned_data = super().clean()
@@ -46,12 +35,6 @@ class DetectionSearchForm(forms.Form):
         
         if start_time and end_time and end_time <= start_time:
             raise forms.ValidationError("End time must be later than start time")
-        
-        camera_id = cleaned_data.get('camera_id')
-        if camera_id == '':
-            cleaned_data['camera_id'] = None
-        elif camera_id:
-            cleaned_data['camera_id'] = int(camera_id)
             
         return cleaned_data
 
@@ -63,13 +46,12 @@ class DetectionSearchView(FormView):
         try:
             start_time = form.cleaned_data['start_time']
             end_time = form.cleaned_data['end_time']
-            camera_id = form.cleaned_data.get('camera_id')
             visualization_type = form.cleaned_data.get('visualization_type')
             
-            print(f"Processing request: start={start_time}, end={end_time}, camera={camera_id}, viz={visualization_type}")
+            print(f"Processing request: start={start_time}, end={end_time}, viz={visualization_type}")
             
             # Get statistics
-            stats = get_detection_statistics(start_time, end_time, camera_id)
+            stats = get_detection_statistics(start_time, end_time)
             print(f"Statistics retrieved: {stats}")
             
             # Generate visualizations based on selected type
@@ -77,23 +59,20 @@ class DetectionSearchView(FormView):
             
             if visualization_type == 'heatmap':
                 raw_viz = generate_heatmap(
-                    start_time,
-                    end_time,
-                    camera_id,
+                    start_time=start_time,
+                    end_time=end_time,
                     img_width=1920,
                     img_height=1080
                 )
             elif visualization_type == 'points':
                 raw_viz = plot_points(
                     start_time=start_time,
-                    end_time=end_time,
-                    camera_id=camera_id
+                    end_time=end_time
                 )
             else:  # boxes
                 raw_viz = plot_bounding_boxes(
                     start_time=start_time,
                     end_time=end_time,
-                    camera_id=camera_id,
                     opacity=0.6
                 )
             
