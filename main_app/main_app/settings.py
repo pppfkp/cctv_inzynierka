@@ -35,7 +35,8 @@ ALLOWED_HOSTS = [
     'host.docker.internal',
     'localhost',
     'entry-app',
-    'main-app'
+    'main-app',
+    '100.65.141.3'
 ]
 
 # Application definition
