@@ -6,6 +6,8 @@ import cv2
 from django.core.files.storage import default_storage
 from PIL import Image
 import logging
+from django.db.models.functions import Round
+
 
 Detection = apps.get_model('stats', 'Detection')
 Camera = apps.get_model('management', 'Camera')
@@ -47,41 +49,48 @@ def get_detection_statistics(
     # Recognized detections (user_id is not null)
     recognized_detections = base_query.filter(user__isnull=False).count()
     
-    # Detections per user
-    detections_per_user = base_query.values('user').annotate(
-        detection_count=Count('id')
-    ).exclude(user__isnull=True).order_by('-detection_count')
+    # Detections per user - include user details and format as list of dicts
+    detections_per_user = list(base_query.values('user', 'user__username')
+        .annotate(detection_count=Count('id'))
+        .exclude(user__isnull=True)
+        .order_by('-detection_count')
+        .values('user', 'user__username', 'detection_count'))
     
-    # Base query for recognitions
-    recognition_query = Recognition.objects.filter(time__range=(start_time, end_time))
+    # Base query for recognitions within the time range
+    recognition_query = Recognition.objects.filter(
+        time__range=(start_time, end_time)
+    )
+    if camera_id is not None:
+        recognition_query = recognition_query.filter(detection__camera_id=camera_id)
     
     # Recognition statistics
     avg_distance_all = recognition_query.aggregate(Avg('distance'))['distance__avg'] or 0
     total_recognitions = recognition_query.count()
     
-    # Average recognition distance per user
-    avg_distance_per_user = recognition_query.values('user').annotate(
-        avg_distance=Avg('distance')
-    ).exclude(user__isnull=True)
-    
+    # Average recognition distance per user - format as list of dicts
+    avg_distance_per_user = list(recognition_query.values('user', 'user__username')
+        .annotate(avg_distance=Round(Avg('distance'), 2))
+        .exclude(user__isnull=True)
+        .order_by('avg_distance')
+        .values('user', 'user__username', 'avg_distance'))
+
     return {
         'total_detections': total_detections,
         'unrecognized_detections': unrecognized_detections,
         'recognized_detections': recognized_detections,
         'detections_per_user': detections_per_user,
         'total_recognitions': total_recognitions,
-        'avg_distance_all': avg_distance_all,
+        'avg_distance_all': round(avg_distance_all, 2) if avg_distance_all else 0,
         'avg_distance_per_user': avg_distance_per_user
     }
 
-
 def get_distinct_users_in_timeframe(
     start_time: datetime,
-    end_time: datetime,
-    camera_id: Optional[int] = None
+    end_time: datetime
 ) -> list[int]:
     """
     Retrieve distinct user IDs for detections within a specified time range.
+    Returns a list of user IDs, excluding None values.
     """
     if is_naive(start_time):
         start_time = make_aware(start_time)
@@ -89,10 +98,6 @@ def get_distinct_users_in_timeframe(
         end_time = make_aware(end_time)
     
     query = Detection.objects.filter(time__range=(start_time, end_time))
-    
-    if camera_id is not None:
-        query = query.filter(camera_id=camera_id)
-    
     user_ids = query.values_list('user_id', flat=True).distinct()
     return list(filter(None, user_ids))
 
