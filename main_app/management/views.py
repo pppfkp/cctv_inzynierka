@@ -1,5 +1,6 @@
 import base64
 import json
+import socket
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 import cv2
@@ -86,6 +87,7 @@ def stop_container(request, camera_id):
         return JsonResponse({'error': str(e)}, status=500)
     
 def camera_streams_view(request):
+    server_host = request.get_host().split(':')[0]
     CameraContainer = apps.get_model('management', 'CameraContainer')
     # Fetch all camera containers
     containers = CameraContainer.objects.all()
@@ -94,7 +96,7 @@ def camera_streams_view(request):
     streams = [
         {
             "camera_id": container.camera.id,
-            "video_feed_url": f"http://127.0.0.1:{container.port}/video_feed"
+            "video_feed_url": f"http://{server_host}:{container.port}/video_feed"
         }
         for container in containers
     ]
