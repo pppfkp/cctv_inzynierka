@@ -16,6 +16,7 @@ from django.utils.timezone import make_aware, is_naive
 from typing import Optional, Dict
 
 from django.db.models import Avg
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -125,14 +126,18 @@ from collections import defaultdict
 def generate_heatmap(
     start_time: datetime,
     end_time: datetime,
-    camera_id: int = None,
+    camera_id: Optional[int] = None,
     img_width: int = 1920,
     img_height: int = 1080,
-    heatmap_radius: int = 20,  # Radius around each point where the heat will accumulate
-    max_heat_value: int = 255  # Max intensity value for the heatmap
-) -> dict:
+    heatmap_radius: int = 30,
+    gaussian_sigma: int = 10,
+    opacity: float = 0.7,
+    colormap: str = 'jet',
+    min_intensity: float = 0.1,
+    max_intensity: float = 0.95
+) -> Dict[int, np.ndarray]:
     """
-    Generate a heatmap visualization for the points plotted at the top center of bounding boxes.
+    Generate an enhanced heatmap visualization with Gaussian smoothing and customizable colormaps.
 
     Args:
         start_time: Start of time range to plot
@@ -141,12 +146,16 @@ def generate_heatmap(
         img_width: Width of output image
         img_height: Height of output image
         heatmap_radius: Radius around each point where heat will accumulate
-        max_heat_value: Max intensity value for the heatmap
+        gaussian_sigma: Standard deviation for Gaussian smoothing
+        opacity: Opacity of heatmap overlay (0.0 to 1.0)
+        colormap: Matplotlib colormap name ('jet', 'hot', 'viridis', etc.)
+        min_intensity: Minimum intensity threshold for visualization (0.0 to 1.0)
+        max_intensity: Maximum intensity threshold for visualization (0.0 to 1.0)
+    
     Returns:
         dict: Camera ID to heatmap image mapping
     """
-    logger.info(f"Starting heatmap generation for period {start_time} to {end_time}")
-    logger.info(f"Parameters: camera_id={camera_id}, width={img_width}, height={img_height}")
+    logger.info(f"Starting enhanced heatmap generation for period {start_time} to {end_time}")
 
     # Query detections within the specified time range
     detections_query = Detection.objects.filter(
@@ -156,11 +165,9 @@ def generate_heatmap(
     if camera_id is not None:
         detections_query = detections_query.filter(camera_id=camera_id)
         cameras = Camera.objects.filter(id=camera_id, enabled=True)
-        logger.info(f"Filtered to camera {camera_id}: {detections_query.count()} detections")
     else:
         camera_ids = detections_query.values_list('camera_id', flat=True).distinct()
         cameras = Camera.objects.filter(id__in=camera_ids, enabled=True)
-        logger.info(f"Processing {cameras.count()} cameras: {list(cameras.values_list('id', flat=True))}")
 
     if not cameras.exists():
         logger.warning("No enabled cameras found for the specified criteria")
@@ -170,64 +177,126 @@ def generate_heatmap(
 
     for camera in cameras:
         logger.info(f"Processing camera {camera.id}")
-
-        # Get detections for this camera
         cam_detections = detections_query.filter(camera_id=camera.id)
         detection_count = cam_detections.count()
-
-        logger.info(f"Camera {camera.id} has {detection_count} detections")
 
         if not detection_count:
             continue
 
-        # Create a blank heatmap with zeros (accumulating density)
+        # Create accumulator arrays for the heatmap
         heatmap = np.zeros((img_height, img_width), dtype=np.float32)
-
+        
+        # Process detections with kernel-based accumulation
+        kernel = create_gaussian_kernel(heatmap_radius, gaussian_sigma)
+        
         for detection in cam_detections:
             try:
                 x, y, w, h = map(int, detection.xywh)
-
-                # Calculate top-center of the bounding box
-                top_center = (x, img_height - (y + h // 2))
-
-                # Accumulate heat in a circular region around the point
-                cv2.circle(heatmap, top_center, heatmap_radius, 1, -1)  # Accumulate a value of 1 inside the radius
+                add_detection_to_heatmap(
+                    heatmap, x + w//2, y + h//2, 
+                    kernel, heatmap_radius, 
+                    img_width, img_height
+                )
             except (AttributeError, ValueError) as e:
                 logger.error(f"Error processing detection {detection.id}: {e}")
                 continue
 
-        logger.info(f"Camera {camera.id}: Generated heatmap with total heat value {np.sum(heatmap)}")
-
         if np.sum(heatmap) > 0:
-            # Normalize heatmap values to the range [0, max_heat_value]
-            heatmap = cv2.normalize(heatmap, None, 0, max_heat_value, cv2.NORM_MINMAX)
-
-            # Apply a heatmap colormap (e.g., HOT colormap)
-            heatmap_colored = cv2.applyColorMap(heatmap.astype(np.uint8), cv2.COLORMAP_HOT)
-            heatmap_colored = cv2.flip(heatmap_colored, 0)
-
-            # Get or create background image
-            background = fetch_camera_photo(camera, img_width, img_height)
-            if background is None:
-                logger.warning(f"Using blank background for camera {camera.id}")
-                background = np.ones((img_height, img_width, 3), dtype=np.uint8) * 255
-
-            # Overlay the heatmap on the background
-            overlay = cv2.addWeighted(
-                background,
-                0.7,  # Slight transparency for the background
-                heatmap_colored,
-                0.3,  # Apply partial transparency to the heatmap
-                0
+            overlay = create_heatmap_overlay(
+                heatmap,
+                camera,
+                img_width,
+                img_height,
+                gaussian_sigma,
+                opacity,
+                colormap,
+                min_intensity,
+                max_intensity
             )
-
+            
             heatmap_plots[camera.id] = overlay
-            logger.info(f"Successfully generated heatmap for camera {camera.id}")
+            logger.info(f"Successfully generated enhanced heatmap for camera {camera.id}")
         else:
             logger.warning(f"No valid points to generate heatmap for camera {camera.id}")
 
-    logger.info(f"Completed heatmap generation. Generated {len(heatmap_plots)} heatmaps")
     return heatmap_plots
+
+def create_gaussian_kernel(radius: int, sigma: float) -> np.ndarray:
+    """Create a Gaussian kernel for heat distribution."""
+    y, x = np.ogrid[-radius:radius + 1, -radius:radius + 1]
+    mask = x*x + y*y <= radius*radius
+    kernel = np.zeros((2*radius+1, 2*radius+1))
+    kernel[mask] = np.exp(-(x*x + y*y)[mask]/(2*sigma**2))
+    return kernel / kernel.max()
+
+def add_detection_to_heatmap(
+    heatmap: np.ndarray,
+    center_x: int,
+    center_y: int,
+    kernel: np.ndarray,
+    radius: int,
+    img_width: int,
+    img_height: int
+) -> None:
+    """Add a single detection to the heatmap using the precomputed kernel."""
+    y_min = max(0, center_y - radius)
+    y_max = min(img_height, center_y + radius + 1)
+    x_min = max(0, center_x - radius)
+    x_max = min(img_width, center_x + radius + 1)
+    
+    kernel_y_min = radius - (center_y - y_min)
+    kernel_y_max = radius + (y_max - center_y)
+    kernel_x_min = radius - (center_x - x_min)
+    kernel_x_max = radius + (x_max - center_x)
+    
+    heatmap[y_min:y_max, x_min:x_max] += kernel[
+        kernel_y_min:kernel_y_max,
+        kernel_x_min:kernel_x_max
+    ]
+
+def create_heatmap_overlay(
+    heatmap: np.ndarray,
+    camera,
+    img_width: int,
+    img_height: int,
+    gaussian_sigma: float,
+    opacity: float,
+    colormap: str,
+    min_intensity: float,
+    max_intensity: float
+) -> np.ndarray:
+    """Create the final heatmap overlay with background blending."""
+    # Apply additional Gaussian smoothing
+    heatmap = cv2.GaussianBlur(heatmap, (0, 0), gaussian_sigma)
+    
+    # Normalize and clip heatmap values
+    heatmap = cv2.normalize(heatmap, None, 0, 1, cv2.NORM_MINMAX)
+    heatmap = np.clip((heatmap - min_intensity) / (max_intensity - min_intensity), 0, 1)
+    
+    # Convert to colormap using matplotlib
+    cmap = plt.get_cmap(colormap)
+    heatmap_colored = (cmap(heatmap) * 255).astype(np.uint8)
+    
+    # Get and prepare background
+    background = fetch_camera_photo(camera, img_width, img_height)
+    if background is None:
+        background = np.ones((img_height, img_width, 3), dtype=np.uint8) * 255
+    
+    if len(background.shape) == 2:
+        background = cv2.cvtColor(background, cv2.COLOR_GRAY2BGR)
+    
+    # Convert heatmap to BGR for OpenCV
+    heatmap_colored_bgr = cv2.cvtColor(heatmap_colored, cv2.COLOR_RGBA2BGR)
+    
+    # Create smooth alpha mask for blending
+    alpha = heatmap.copy()
+    alpha = cv2.GaussianBlur(alpha, (0, 0), gaussian_sigma / 2)
+    alpha = np.clip(alpha * opacity, 0, 1)
+    alpha = np.dstack([alpha] * 3)
+    
+    # Perform alpha blending
+    overlay = background * (1 - alpha) + heatmap_colored_bgr * alpha
+    return np.clip(overlay, 0, 255).astype(np.uint8)
 
 
 

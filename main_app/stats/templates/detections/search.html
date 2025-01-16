@@ -36,6 +36,16 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="{{ form.visualization_type.id_for_label }}">
+                        Visualization Type
+                    </label>
+                    {{ form.visualization_type }}
+                    {% if form.visualization_type.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.visualization_type.errors }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="{{ form.camera_id.id_for_label }}">
                         Camera
                     </label>
@@ -157,16 +167,24 @@
 
     {% if heatmap_data is not None %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {% for camera_id, heatmap_base64 in heatmap_data.items %}
+        {% for camera_id, viz_base64 in heatmap_data.items %}
         <div class="bg-white rounded-lg shadow p-4">
-            <h3 class="text-lg font-semibold text-gray-800 mb-2">Camera {{ camera_id }}</h3>
-            <img src="data:image/png;base64,{{ heatmap_base64 }}"
-                alt="Heatmap for Camera {{ camera_id }}" 
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                Camera {{ camera_id }} -
+                {% if visualization_type == 'heatmap' %}
+                Heatmap
+                {% elif visualization_type == 'points' %}
+                Detection Points
+                {% else %}
+                Bounding Boxes
+                {% endif %}
+            </h3>
+            <img src="data:image/png;base64,{{ viz_base64 }}" alt="Visualization for Camera {{ camera_id }}"
                 class="w-full" />
         </div>
         {% endfor %}
     </div>
-    {% endif %}    
+    {% endif %}
 
 </div>
 {% endblock %}

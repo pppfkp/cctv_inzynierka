@@ -12,6 +12,12 @@ from .utils import generate_heatmap, get_detection_statistics, plot_points, plot
 Camera = apps.get_model('management', 'Camera')
 
 class DetectionSearchForm(forms.Form):
+    VISUALIZATION_CHOICES = [
+        ('heatmap', 'Heatmap'),
+        ('points', 'Points'),
+        ('boxes', 'Bounding Boxes')
+    ]
+
     start_time = forms.DateTimeField(
         widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
         initial=datetime.now() - timedelta(hours=1)
@@ -21,6 +27,11 @@ class DetectionSearchForm(forms.Form):
         initial=datetime.now()
     )
     camera_id = forms.ChoiceField(required=False)
+    visualization_type = forms.ChoiceField(
+        choices=VISUALIZATION_CHOICES,
+        initial='heatmap',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,57 +64,60 @@ class DetectionSearchView(FormView):
             start_time = form.cleaned_data['start_time']
             end_time = form.cleaned_data['end_time']
             camera_id = form.cleaned_data.get('camera_id')
+            visualization_type = form.cleaned_data.get('visualization_type')
             
-            print(f"Processing request: start={start_time}, end={end_time}, camera={camera_id}")
+            print(f"Processing request: start={start_time}, end={end_time}, camera={camera_id}, viz={visualization_type}")
             
             # Get statistics
             stats = get_detection_statistics(start_time, end_time, camera_id)
             print(f"Statistics retrieved: {stats}")
             
-            # Generate heatmaps and convert them to base64
-            heatmap_data = {}
-            print("Generating heatmaps...")
-
-            raw_heatmaps = generate_heatmap(
-                start_time,
-                end_time,
-                camera_id,
-                img_width=1920,
-                img_height=1080
-            )
-
-            raw_heatmaps = plot_points(
-                start_time=start_time,
-                end_time=end_time,
-                camera_id=camera_id
-            )
-
+            # Generate visualizations based on selected type
+            print(f"Generating {visualization_type} visualization...")
             
-            # raw_heatmaps = plot_bounding_boxes(
-            #     start_time=start_time,
-            #     end_time=end_time,
-            #     camera_id=camera_id,
-            #     opacity=0.6
-            # )
+            if visualization_type == 'heatmap':
+                raw_viz = generate_heatmap(
+                    start_time,
+                    end_time,
+                    camera_id,
+                    img_width=1920,
+                    img_height=1080
+                )
+            elif visualization_type == 'points':
+                raw_viz = plot_points(
+                    start_time=start_time,
+                    end_time=end_time,
+                    camera_id=camera_id
+                )
+            else:  # boxes
+                raw_viz = plot_bounding_boxes(
+                    start_time=start_time,
+                    end_time=end_time,
+                    camera_id=camera_id,
+                    opacity=0.6
+                )
             
-            print(f"Raw heatmaps generated for cameras: {list(raw_heatmaps.keys())}")
+            print(f"Visualization generated for cameras: {list(raw_viz.keys())}")
             
-            for cam_id, heatmap_img in raw_heatmaps.items():
-                success, buffer = cv2.imencode('.png', heatmap_img)
+            # Convert visualizations to base64
+            viz_data = {}
+            for cam_id, viz_img in raw_viz.items():
+                success, buffer = cv2.imencode('.png', viz_img)
                 if success:
                     img_base64 = base64.b64encode(buffer).decode('utf-8')
-                    heatmap_data[cam_id] = img_base64
-                    print(f"Successfully encoded heatmap for camera {cam_id}")
+                    viz_data[cam_id] = img_base64
+                    print(f"Successfully encoded visualization for camera {cam_id}")
                 else:
-                    print(f"Failed to encode heatmap for camera {cam_id}")
+                    print(f"Failed to encode visualization for camera {cam_id}")
         
-            print("Heatmap Data keys:", heatmap_data.keys())
+            print("Visualization Data keys:", viz_data.keys())
         
             return render(self.request, self.template_name, {
                 'form': form,
                 'search_performed': True,
                 'stats': stats,
-                'heatmap_data': heatmap_data,
+                'heatmap_data': viz_data,  # Keep the same template variable name for compatibility
+                'visualization_type': visualization_type
             })
             
         except Exception as e:
