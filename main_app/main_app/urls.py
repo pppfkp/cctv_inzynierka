@@ -6,8 +6,10 @@ from management.views import camera_streams_view, save_boundary_points, list_con
 from stats.views import DetectionSearchView
 from django.conf import settings
 from django.conf.urls.static import static
+from management.views import home
 
 urlpatterns = [
+    path('', home, name='home'),
     path('admin/', admin.site.urls),
     path('restart_containers/', restart_containers, name='restart_containers'),
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),

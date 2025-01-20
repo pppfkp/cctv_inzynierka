@@ -10,6 +10,9 @@ from django.apps import apps
 from django.conf import settings
 from .utils import start_detection_containers_logic, restart_containers_logic, stop_container_logic
 
+def home(request):
+    return render(request, 'custom_base.html')
+
 @csrf_exempt  # Disable CSRF for simplicity; ensure proper security in production
 def save_boundary_points(request, boundary_id):
     Boundary = apps.get_model('management', 'Boundary')
