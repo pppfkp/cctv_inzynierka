@@ -9,6 +9,7 @@ from django.conf.urls.static import static
 from management.views import home, camera_streams_view
 from management.views import save_boundary_points
 from management.views import settings_view, update_setting, reset_all_settings
+from management.views import cameras_setup_view
 urlpatterns = [
     path('', home, name='home'),
 
@@ -27,7 +28,10 @@ urlpatterns = [
     path('settings/', settings_view, name='settings'),
     path('update-setting/<int:setting_id>/', update_setting, name='update_setting'),
     path('reset-all-settings/', reset_all_settings, name='reset_all_settings'),
-    
+
+    # cameras_setup
+    path('cameras_setup/', cameras_setup_view, name='cameras_setup'),
+
     #other
     path('admin/', admin.site.urls),
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),

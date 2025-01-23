@@ -305,3 +305,10 @@ def reset_all_settings(request):
             'status': 'error',
             'message': str(e)
         }, status=500)
+    
+#  cameras setup
+
+def cameras_setup_view(request):
+    Camera = apps.get_model('management', 'Camera')
+    cameras = Camera.objects.all()
+    return render(request, 'cameras_setup.html', {'cameras': cameras})
