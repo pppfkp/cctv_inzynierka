@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from pgvector.django import VectorField
 import logging
 
-from .utils import restart_containers_logic, update_entry_app_thresholds
+from .utils import restart_all_containers_logic, update_entry_app_thresholds
 
 # Create your models here.
 class TrackingSubject(models.Model):
@@ -32,7 +32,7 @@ class Camera(models.Model):
 def camera_changed(sender, instance, **kwargs):
     try:
         # Restart containers when Camera changes
-        restart_containers_logic()
+        restart_all_containers_logic(hard=True)
         logging.info(f"Containers restarted due to Camera changes: {instance.name}")
     except Exception as e:
         logging.error(f"Error restarting containers after Camera change: {e}")
@@ -57,8 +57,8 @@ class Setting(models.Model):
 @receiver(post_delete, sender=Setting)
 def setting_changed(sender, instance, **kwargs):
     try:
-        # Restart containers when Setting changes
-        restart_containers_logic()
+        # Implement only if setting si related to the detection
+        # restart_all_containers_logic(hard=True)
         logging.info(f"Containers restarted due to Setting changes: {instance.key}")
     except Exception as e:
         logging.error(f"Error restarting containers after Setting change: {e}")
