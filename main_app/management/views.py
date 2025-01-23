@@ -2,7 +2,7 @@ import base64
 import json
 import socket
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 import cv2
 from django.views.decorators.csrf import csrf_exempt
 import docker
@@ -12,6 +12,9 @@ from django.conf import settings
 from .forms import SettingForm
 from .utils import hard_restart_container_logic, restart_all_containers_logic, soft_restart_container_logic, start_all_containers_logic, stop_container_logic, start_container_logic, stop_all_containers_logic
 from django.views.decorators.http import require_POST
+
+from django.urls import reverse
+from .forms import CameraForm
 
 
 
@@ -312,3 +315,33 @@ def cameras_setup_view(request):
     Camera = apps.get_model('management', 'Camera')
     cameras = Camera.objects.all()
     return render(request, 'cameras_setup.html', {'cameras': cameras})
+
+def add_camera_view(request):
+    if request.method == 'POST':
+        form = CameraForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('cameras_setup')
+    else:
+        form = CameraForm()
+    return render(request, 'camera_add.html', {'form': form})
+
+def edit_camera_view(request, pk):
+    Camera = apps.get_model('management', 'Camera')
+    camera = get_object_or_404(Camera, pk=pk)
+    if request.method == 'POST':
+        form = CameraForm(request.POST, request.FILES, instance=camera)
+        if form.is_valid():
+            form.save()
+            return redirect('cameras_setup')
+    else:
+        form = CameraForm(instance=camera)
+    return render(request, 'camera_edit.html', {'form': form, 'camera': camera})
+
+def delete_camera_view(request, pk):
+    Camera = apps.get_model('management', 'Camera')
+    camera = get_object_or_404(Camera, pk=pk)
+    if request.method == 'POST':
+        camera.delete()
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'})

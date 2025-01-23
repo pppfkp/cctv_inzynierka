@@ -2,7 +2,7 @@
 from django.contrib import admin
 from django.urls import path
 from face_recognition.views import extract_embedding_view, FindClosestEmbeddingView
-from management.views import containers_status_view, hard_reset_all_containers_view, hard_restart_container_view, soft_reset_all_containers_view, soft_restart_container_view, start_all_containers_view, start_container_view, stop_all_containers_view, stop_container_view
+from management.views import add_camera_view, containers_status_view, delete_camera_view, edit_camera_view, hard_reset_all_containers_view, hard_restart_container_view, soft_reset_all_containers_view, soft_restart_container_view, start_all_containers_view, start_container_view, stop_all_containers_view, stop_container_view
 from stats.views import DetectionSearchView
 from django.conf import settings
 from django.conf.urls.static import static
@@ -31,6 +31,9 @@ urlpatterns = [
 
     # cameras_setup
     path('cameras_setup/', cameras_setup_view, name='cameras_setup'),
+    path('add-camera/', add_camera_view, name='add_camera'),
+    path('edit-camera/<int:pk>/', edit_camera_view, name='edit_camera'),
+    path('delete-camera/<int:pk>/', delete_camera_view, name='delete_camera'),
 
     #other
     path('admin/', admin.site.urls),

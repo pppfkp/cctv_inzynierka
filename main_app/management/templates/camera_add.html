@@ -1,0 +1,12 @@
+{% extends 'custom_base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Add Camera</h1>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save</button>
+    </form>
+</div>
+{% endblock %}
