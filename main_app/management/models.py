@@ -4,6 +4,7 @@ from django.dispatch import receiver
 from django.contrib.auth.models import User
 from pgvector.django import VectorField
 import logging
+from django.core.exceptions import ValidationError
 
 from .utils import restart_all_containers_logic, update_entry_app_thresholds
 
@@ -40,6 +41,7 @@ def camera_changed(sender, instance, **kwargs):
 class Setting(models.Model):
     key = models.CharField(max_length=100, unique=True)
     value = models.TextField()
+    default_value = models.TextField()  # New field for default value
     description = models.TextField(blank=True, null=True)
     TYPE_CHOICES = [
         ('str', 'String'),
@@ -50,7 +52,31 @@ class Setting(models.Model):
     data_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='str')
 
     def __str__(self):
-        return f"{self.key}: {self.value}" 
+        return f"{self.key}: {self.value}"
+
+    def clean(self):
+        """
+        Validate the value based on its data type
+        """
+        try:
+            if self.data_type == 'int':
+                int(self.value)
+                int(self.default_value)
+            elif self.data_type == 'float':
+                float(self.value)
+                float(self.default_value)
+            elif self.data_type == 'bool':
+                self.value = str(self.value).lower() in ['true', '1', 'yes']
+                self.default_value = str(self.default_value).lower() in ['true', '1', 'yes']
+        except ValueError:
+            raise ValidationError(f"Invalid {self.get_data_type_display()} value")
+
+    def reset_to_default(self):
+        """
+        Reset the current value to its default value
+        """
+        self.value = self.default_value
+        self.save()
 
 # Signal handler for Setting changes
 @receiver(post_save, sender=Setting)

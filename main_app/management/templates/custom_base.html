@@ -25,7 +25,7 @@
                 <a class="nav-link" href="#">Users</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="#">System Settings</a>
+                <a class="nav-link" href="{% url 'settings' %}">System Settings</a>
               </li>
               <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -33,7 +33,6 @@
                 </a>
                 <ul class="dropdown-menu">
                   <li><a class="dropdown-item" href="{% url 'containers_status' %}">Containers Status</a></li>
-                  <li><a class="dropdown-item" href="#">Restart Containers</a></li>
                 </ul>
               </li>
               <li class="nav-item dropdown">

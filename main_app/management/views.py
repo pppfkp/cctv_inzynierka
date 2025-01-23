@@ -8,14 +8,14 @@ from django.views.decorators.csrf import csrf_exempt
 import docker
 from django.apps import apps
 from django.conf import settings
-from .utils import hard_restart_container_logic, restart_all_containers_logic, soft_restart_container_logic, start_all_containers_logic, start_container_logic, stop_all_containers_logic
+
+from .forms import SettingForm
+from .utils import hard_restart_container_logic, restart_all_containers_logic, soft_restart_container_logic, start_all_containers_logic, stop_container_logic, start_container_logic, stop_all_containers_logic
 from django.views.decorators.http import require_POST
-from .utils import start_detection_containers_logic, restart_containers_logic, stop_container_logic
 
-def home(request):
-    return render(request, 'custom_base.html')
 
-@csrf_exempt  # Disable CSRF for simplicity; ensure proper security in production
+
+@csrf_exempt 
 def save_boundary_points(request, boundary_id):
     Boundary = apps.get_model('management', 'Boundary')
     if request.method == "POST":
@@ -39,58 +39,10 @@ def save_boundary_points(request, boundary_id):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
-
-def list_containers(request):
-    try:
-        # Initialize Docker client
-        client = docker.DockerClient(base_url='tcp://host.docker.internal:2375')
-        
-        # List all containers
-        containers = client.containers.list()
-
-        # Collect container names and statuses
-        container_data = [{
-            'name': container.name,
-            'status': container.status
-        } for container in containers]
-        
-        return JsonResponse({'containers': container_data})
-    except docker.errors.DockerException as e:
-        return JsonResponse({'error': f"Error connecting to Docker: {e}"}, status=500)
     
+def home(request):
+    return render(request, 'custom_base.html')
 
-def start_detection_containers(request):
-    """
-    Django view to start detection containers.
-    """
-    try:
-        result = start_detection_containers_logic()
-        return JsonResponse({'message': result['message']})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-def restart_containers(request):
-    """
-    Django view to restart containers.
-    """
-    try:
-        result = restart_containers_logic()
-        return JsonResponse({'message': result['message']})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-def stop_container(request, camera_id):
-    """
-    Django view to stop a container by camera ID.
-    """
-    try:
-        result = stop_container_logic(camera_id=camera_id)
-        if 'error' in result:
-            return JsonResponse({'error': result['error']}, status=result.get('status', 500))
-        return JsonResponse({'message': result['message']})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-    
 def camera_streams_view(request):
     server_host = request.get_host().split(':')[0] # Get the server asddresss relative to the client
     CameraContainer = apps.get_model('management', 'CameraContainer')
@@ -109,6 +61,8 @@ def camera_streams_view(request):
     
     # Render the template with streams data
     return render(request, 'camera_streams.html', {'streams': streams})
+
+# camera containers
 
 def containers_status_view(request):
     Setting = apps.get_model('management', 'Setting')
@@ -266,7 +220,6 @@ def soft_reset_all_containers_view(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-
 @csrf_exempt
 @require_POST
 def hard_reset_all_containers_view(request):
@@ -305,3 +258,50 @@ def stop_all_containers_view(request):
         return JsonResponse({'message': 'All containers stopped successfully.'})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+# settings
+
+def settings_view(request):
+    Setting = apps.get_model('management', 'Setting')
+    settings = Setting.objects.all()
+    return render(request, 'settings.html', {'settings': settings})
+
+@csrf_exempt
+@require_POST
+def update_setting(request, setting_id):
+    Setting = apps.get_model('management', 'Setting')
+    setting = Setting.objects.get(id=setting_id)
+    form = SettingForm(request.POST, instance=setting)
+    
+    if form.is_valid():
+        form.save()
+        return JsonResponse({
+            'status': 'success', 
+            'message': 'Setting updated successfully',
+            'value': form.cleaned_data['value']
+        })
+    else:
+        return JsonResponse({
+            'status': 'error', 
+            'message': form.errors['value'][0]
+        }, status=400)
+
+@csrf_exempt
+@require_POST
+def reset_all_settings(request):
+    try:
+        Setting = apps.get_model('management', 'Setting')
+        # Reset all settings to their default values
+        settings = Setting.objects.all()
+        for setting in settings:
+            setting.reset_to_default()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'All settings reset to default values'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
