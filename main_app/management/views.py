@@ -1,5 +1,7 @@
 import base64
 import json
+import logging
+import os
 import socket
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -15,6 +17,7 @@ from django.views.decorators.http import require_POST
 
 from django.urls import reverse
 from .forms import CameraForm
+from django.core.files.base import ContentFile
 
 
 
@@ -46,6 +49,8 @@ def save_boundary_points(request, boundary_id):
 def home(request):
     return render(request, 'custom_base.html')
 
+# camera streams
+
 def camera_streams_view(request):
     server_host = request.get_host().split(':')[0] # Get the server asddresss relative to the client
     CameraContainer = apps.get_model('management', 'CameraContainer')
@@ -64,6 +69,26 @@ def camera_streams_view(request):
     
     # Render the template with streams data
     return render(request, 'camera_streams.html', {'streams': streams})
+
+def camera_streams_raw_view(request):
+    server_host = request.get_host().split(':')[0] # Get the server asddresss relative to the client
+    CameraContainer = apps.get_model('management', 'CameraContainer')
+
+    # Fetch all camera containers
+    containers = CameraContainer.objects.all()
+    
+    # Prepare video feed URLs
+    streams = [
+        {
+            "camera_id": container.camera.id,
+            "camera_name": container.camera.name,
+            "video_feed_url": f"http://{server_host}:{container.port}/video_feed_raw"
+        }
+        for container in containers
+    ]
+    
+    # Render the template with streams data
+    return render(request, 'camera_streams_raw.html', {'streams': streams})
 
 # camera containers
 
@@ -345,3 +370,53 @@ def delete_camera_view(request, pk):
         camera.delete()
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+
+@csrf_exempt
+@require_POST
+def set_camera_photo_view(request):
+    """
+    View to set the current frame of a camera stream as the reference photo.
+    """
+    try:
+        Camera = apps.get_model('management', 'Camera')
+        data = json.loads(request.body)  # Parse JSON instead of request.POST
+        camera_id = data.get('camera_id')
+        video_feed_url = data.get('video_feed_url')
+
+        if not camera_id or not video_feed_url:
+            return JsonResponse({'status': 'error', 'message': 'Missing camera_id or video_feed_url'}, status=400)
+
+        # Fetch the camera instance
+        camera = Camera.objects.get(id=camera_id)
+
+        video_feed_url = "http://host.docker.internal:5000/video_feed_raw"
+
+        # Capture the current frame from the stream
+        cap = cv2.VideoCapture(video_feed_url)
+        ret, frame = cap.read()
+        cap.release()
+
+        if not ret:
+            return JsonResponse({'status': 'error', 'message': 'Unable to capture frame from stream.'}, status=500)
+
+        # Save the frame as an image
+        _, buffer = cv2.imencode('.jpg', frame)
+        image_content = ContentFile(buffer.tobytes())
+
+        # Generate a unique file name
+        filename = f"{camera.name}_reference.jpg"
+        if camera.photo.name:
+            # Remove the old reference photo if it exists
+            old_photo_path = camera.photo.path
+            if os.path.exists(old_photo_path):
+                os.remove(old_photo_path)
+
+        # Update the camera photo field
+        camera.photo.save(filename, image_content)
+        camera.save()
+
+        return JsonResponse({'status': 'success', 'message': 'Reference photo updated successfully.'})
+    except Camera.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Camera not found.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

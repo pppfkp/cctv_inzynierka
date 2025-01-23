@@ -36,7 +36,8 @@ ALLOWED_HOSTS = [
     'localhost',
     'entry-app',
     'main-app',
-    '100.65.141.3'
+    '100.65.141.3',
+    '192.168.0.104'
 ]
 
 # Application definition
