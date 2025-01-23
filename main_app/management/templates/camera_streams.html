@@ -1,16 +1,23 @@
 {% extends 'custom_base.html' %}
 
 {% block content %}
-<h1>Camera Streams</h1>
-<div>
+<h1>Camera Augmented Streams</h1>
+<div class="d-flex flex-wrap justify-content-center">
     {% for stream in streams %}
-    <div class="stream">
-        <h2>Camera ID: {{ stream.camera_id }}</h2>
-        <div class="video">
-            <img id="videoFeed" src="{{ stream.video_feed_url }}" alt="Camera stream" height="1080" width="1920">
+    <div class="card m-3" style="max-width: 1080px; width: 100%;">
+        <img 
+            id="videoFeed" 
+            src="{{ stream.video_feed_url }}" 
+            alt="Camera stream" 
+            class="card-img-top" 
+            style="width: 100%; height: auto;">
+        <div class="card-body">
+          <h5 class="card-title">Camera: {{ stream.camera_name }}</h5>
+          <p class="card-text">
+            <a href="{{ stream.video_feed_url }}"> Stream </a>
+          </p>
         </div>
     </div>
     {% endfor %}
 </div>
 {% endblock %}
-

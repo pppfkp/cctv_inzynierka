@@ -2,13 +2,22 @@
 from django.contrib import admin
 from django.urls import path
 from face_recognition.views import extract_embedding_view, FindClosestEmbeddingView
-from management.views import camera_streams_view, save_boundary_points, list_containers, start_detection_containers, restart_containers
+from management.views import camera_streams_view, hard_reset_all_containers_view, hard_restart_container_view, save_boundary_points, list_containers, soft_reset_all_containers_view, soft_restart_container_view, start_all_containers_view, start_detection_containers, restart_containers, stop_all_containers_view
 from stats.views import DetectionSearchView
 from django.conf import settings
 from django.conf.urls.static import static
-from management.views import home
+from management.views import home, containers_status_view, start_container_view, stop_container_view
 
 urlpatterns = [
+    path('containers/status/', containers_status_view, name='containers_status'),
+    path('start-container/', start_container_view, name='start_container'),
+    path('stop-container/', stop_container_view, name='stop_container'),
+    path('soft-restart-container/', soft_restart_container_view, name='soft_restart_container'),
+    path('hard-restart-container/', hard_restart_container_view, name='hard_restart_container'),
+    path('soft-reset-all/', soft_reset_all_containers_view, name='soft_reset_all_containers'),
+    path('hard-reset-all/', hard_reset_all_containers_view, name='hard_reset_all_containers'),
+    path('start-all-containers/', start_all_containers_view, name='start_all_containers'),
+    path('stop-all-containers/', stop_all_containers_view, name='stop_all_containers'),
     path('', home, name='home'),
     path('admin/', admin.site.urls),
     path('restart_containers/', restart_containers, name='restart_containers'),
