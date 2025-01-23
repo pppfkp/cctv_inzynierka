@@ -1,5 +1,5 @@
 from django import forms
-from .models import Setting
+from .models import Setting, Camera
 
 class SettingForm(forms.ModelForm):
     class Meta:
@@ -23,3 +23,14 @@ class SettingForm(forms.ModelForm):
             return value
         except ValueError:
             raise forms.ValidationError(f"Invalid {self.instance.get_data_type_display()} value")
+        
+class CameraForm(forms.ModelForm):
+    class Meta:
+        model = Camera
+        fields = ['name', 'link', 'enabled', 'photo']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'link': forms.URLInput(attrs={'class': 'form-control'}),
+            'enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'photo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }

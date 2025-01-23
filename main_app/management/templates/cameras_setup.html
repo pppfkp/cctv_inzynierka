@@ -2,8 +2,50 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="text-center mb-0">Cameras Setup</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-center mb-0">Cameras Setup</h1>
+        <button class="add_new-btn btn btn-success">Add new camera</button>
+    </div>
+    
+    <table class="table table-striped table-bordered text-center align-middle">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Link</th>
+                <th>Enabled</th>
+                <th>Photo Path</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for camera in cameras %}
+            <tr id="cameras-row-{{ camera.id }}">
+                <td>{{ camera.name }}</td>
+                <td>{{ camera.link }}</td>
+                <td>
+                    <input type="checkbox" class="form-check-input camera-enabled" data-id="{{ camera.id }}" {% if camera.enabled %}checked{% endif %} disabled>
+                </td>
+                <td>
+                    <a href="{{ camera.photo.url }}">{{ camera.photo.url }}</a>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-primary edit-camera m-1" data-id="{{ camera.id }}">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-success save-camera d-none m-1" data-id="{{ camera.id }}">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    {% comment %} href="{% url 'camera_delete' camera.id %}" {% endcomment %}
+                    <a href="#" class="btn btn-sm btn-danger delete-camera">
+                        <i class="fas fa-trash"></i> Delete
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+
 {% block extra_js %}
 <script>
 
