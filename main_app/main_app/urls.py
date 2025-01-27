@@ -46,7 +46,6 @@ urlpatterns = [
     path('users/delete/<int:user_id>/', delete_user_view, name='delete_user'),
     path('users/delete-embedding/<int:embedding_id>/', delete_face_embedding_view, name='delete_face_embedding'),
     path('users/add-embedding/<int:user_id>/', add_face_embedding_view, name='add_face_embedding'),
-    path('users/add-embedding/<int:user_id>/', add_face_embedding_view, name='add_face_embedding'),
     path('users/add/', add_user_view, name='add_user'),
 
     #other

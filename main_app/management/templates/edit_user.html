@@ -235,7 +235,7 @@
                 const embeddingId = this.getAttribute('data-id');
                 
                 if (confirm('Are you sure you want to delete this embedding?')) {
-                    fetch(`/users/embedding/${embeddingId}/delete/`, {
+                    fetch(`/users/delete-embedding/${embeddingId}/`, {
                         method: 'POST',
                         headers: {
                             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
