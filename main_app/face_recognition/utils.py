@@ -39,7 +39,12 @@ def extract_embedding(photo, confidence_threshold=0.95):
         # Pass through the face recognition model
         embedding = resnet(cropped_face.unsqueeze(0).to(_device)).detach().cpu()[0]
         
-        return embedding, cropped_face  # Return both the embedding and cropped face
+        # Ensure the embedding is a 1D array
+        if embedding.ndim != 1:
+            print(f"Embedding has unexpected shape: {embedding.shape}")
+            return None, None
+        
+        return embedding, max_prob  # Return both the embedding and confidence
         
     except Exception as e:
         print(f"Error extracting embedding: {e}")

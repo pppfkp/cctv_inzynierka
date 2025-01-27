@@ -18,6 +18,7 @@ from django.views.decorators.http import require_POST
 from django.urls import reverse
 from .forms import CameraForm
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 
 
 
@@ -371,3 +372,182 @@ def delete_camera_view(request, pk):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request'})
 
+# users management
+
+def users_list_view(request):
+    User = apps.get_model('auth', 'User')
+    users = User.objects.filter(is_superuser=False)
+    
+    return render(request, 'user_list.html', {'users': users})
+
+def edit_user_view(request, user_id):
+    User = apps.get_model('auth', 'User')
+    Group = apps.get_model('auth', 'Group')
+    FaceEmbedding = apps.get_model('face_recognition', 'FaceEmbedding')
+    user = get_object_or_404(User, id=user_id, is_superuser=False)
+    
+    # Get all available groups
+    all_groups = Group.objects.all()
+    
+    if request.method == 'POST':
+        try:
+            # Update basic user info
+            user.username = request.POST.get('username')
+            user.first_name = request.POST.get('first_name')
+            user.last_name = request.POST.get('last_name')
+            user.email = request.POST.get('email')
+            
+            # Update groups
+            group_ids = request.POST.getlist('groups')
+            user.groups.clear()
+            if group_ids:
+                groups = Group.objects.filter(id__in=group_ids)
+                user.groups.set(groups)
+            
+            user.save()
+            
+            # Handle new face embedding upload
+            new_embedding_file = request.FILES.get('new_embedding')
+            if new_embedding_file:
+                # Create and save new face embedding
+                new_embedding = FaceEmbedding(
+                    user=user,
+                    photo=new_embedding_file,
+                    # Assuming you'll generate embedding later via signal or separate process
+                )
+                new_embedding.save()
+            
+            return redirect('users_list')
+        
+        except Exception as e:
+            return render(request, 'edit_user.html', {
+                'user': user,
+                'all_groups': all_groups,
+            })
+    
+    return render(request, 'edit_user.html', {
+        'user': user,
+        'all_groups': all_groups,
+    })
+
+@require_POST
+def delete_user_view(request, user_id):
+    User = apps.get_model('auth', 'User')
+    
+    try:
+        user = get_object_or_404(User, id=user_id, is_superuser=False)
+        user.delete()
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+# face embeddings
+
+@require_POST
+@csrf_exempt  # Only use this if you're not using CSRF token in your AJAX request
+def delete_face_embedding_view(request, embedding_id):
+    FaceEmbedding = apps.get_model('face_recognition', 'FaceEmbedding')
+    
+    try:
+        # Fetch the embedding object or return 404 if not found
+        embedding = get_object_or_404(FaceEmbedding, id=embedding_id)
+        
+        # Delete the photo file from storage if it exists
+        if embedding.photo:
+            try:
+                default_storage.delete(embedding.photo.path)
+            except Exception as file_error:
+                # Log the file deletion error but continue to delete the database record
+                print(f"Error deleting file: {file_error}")
+        
+        # Delete the embedding record
+        embedding.delete()
+        
+        # Return success response
+        return JsonResponse({'status': 'success'})
+    
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error deleting embedding: {e}")
+        # Return error response
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+# views.py updates
+@require_POST
+def add_face_embedding_view(request, user_id):
+    FaceEmbedding = apps.get_model('face_recognition', 'FaceEmbedding')
+    User = apps.get_model('auth', 'User')
+    
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # Handle multiple files upload
+        if 'new_embeddings' in request.FILES:
+            files = request.FILES.getlist('new_embeddings')
+            for file in files:
+                embedding = FaceEmbedding(user=user, photo=file)
+                embedding.save()
+        # Handle single file upload (from camera or single file)
+        elif 'new_embedding' in request.FILES:
+            file = request.FILES['new_embedding']
+            embedding = FaceEmbedding(user=user, photo=file)
+            embedding.save()
+        else:
+            return JsonResponse({'status': 'error', 'message': 'No files uploaded'}, status=400)
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Embedding(s) added successfully'
+        })
+    
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+def add_user_view(request):
+    """Handles adding a new user."""
+    User = apps.get_model('auth', 'User')
+    Group = apps.get_model('auth', 'Group')
+    if request.method == 'GET':
+        all_groups = Group.objects.all()  # Fetch all groups for the dropdown
+        return render(request, 'user_add.html', {'all_groups': all_groups})
+
+    elif request.method == 'POST':
+        # Extract data from the POST request
+        username = request.POST.get('username')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        email = request.POST.get('email')
+        group_ids = request.POST.getlist('groups')  # Groups are sent as a list
+
+        # Validate input
+        if not username or not email:
+            return JsonResponse({'status': 'error', 'message': 'Missing required fields.'}, status=400)
+
+        if User.objects.filter(username=username).exists():
+            return JsonResponse({'status': 'error', 'message': 'Username already exists.'}, status=400)
+
+        try:
+            # Create the new user
+            user = User.objects.create(
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+            )
+
+            # Assign groups to the user
+            if group_ids:
+                groups = Group.objects.filter(id__in=group_ids)
+                user.groups.set(groups)
+
+            user.save()  # Save the user to the database
+
+            # Return success response
+            return JsonResponse({'status': 'success', 'message': 'User added successfully.'})
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    else:
+        # Handle invalid HTTP methods
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
