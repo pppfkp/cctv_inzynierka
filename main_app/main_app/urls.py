@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.urls import path
 from face_recognition.views import extract_embedding_view, FindClosestEmbeddingView
 from management.views import add_camera_view, add_face_embedding_view, camera_streams_raw_view, containers_status_view, delete_camera_view, edit_camera_view, hard_reset_all_containers_view, hard_restart_container_view, soft_reset_all_containers_view, soft_restart_container_view, start_all_containers_view, start_container_view, stop_all_containers_view, stop_container_view
-from stats.views import DetectionSearchView
+from stats.views import DetectionSearchView, entries_live_list_view
 from django.conf import settings
 from django.conf.urls.static import static
 from management.views import home, camera_streams_view
@@ -47,6 +47,9 @@ urlpatterns = [
     path('users/delete-embedding/<int:embedding_id>/', delete_face_embedding_view, name='delete_face_embedding'),
     path('users/add-embedding/<int:user_id>/', add_face_embedding_view, name='add_face_embedding'),
     path('users/add/', add_user_view, name='add_user'),
+
+    # stats
+    path('entries/', entries_live_list_view, name='entries_list'),
 
     #other
     path('admin/', admin.site.urls),

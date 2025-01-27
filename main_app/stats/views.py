@@ -4,6 +4,7 @@ from django.views.generic import FormView
 from django import forms
 from datetime import datetime, timedelta
 import cv2
+from django.apps import apps
 
 from .utils import generate_heatmap, get_detection_statistics, plot_points, plot_bounding_boxes
 
@@ -103,3 +104,39 @@ class DetectionSearchView(FormView):
             print(f"Error in form_valid: {str(e)}")
             form.add_error(None, f"Error processing request: {str(e)}")
             return self.form_invalid(form)
+        
+from django.utils import timezone
+from django.apps import apps
+
+def entries_live_list_view(request):
+    Entry = apps.get_model('stats', 'Entry')
+    entries = Entry.objects.filter(recognition_out__isnull=True)
+
+    # Create a list to store entry data along with time difference
+    entries_with_time = []
+
+    for entry in entries:
+        # Assuming entry.recognition_in.time is a timezone-aware datetime object
+        entry_time = entry.recognition_in.time
+
+        # Get the current time as a timezone-aware datetime
+        current_time = timezone.now()
+
+        # Calculate the time difference
+        time_inside = current_time - entry_time
+
+        # Extract hours, minutes, and seconds from the time difference
+        hours, remainder = divmod(time_inside.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        # Format the time difference as a string
+        time_inside_str = f"{int(hours)} hours, {int(minutes)} minutes, {int(seconds)} seconds"
+
+        # Append the entry and its time difference to the list
+        entries_with_time.append({
+            'entry': entry,
+            'time_inside': time_inside_str
+        })
+
+    # Pass the list to the template
+    return render(request, 'entries_live.html', {'entries': entries_with_time})
