@@ -14,7 +14,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from pgvector.django import L2Distance
-import logging
+import logging\
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+import json
 
 def extract_embedding_view(request):
     if request.method == "POST":
@@ -80,7 +86,7 @@ class FindClosestEmbeddingView(APIView):
             user = closest_embedding.user
             distance = closest_embedding.distance
             # Save recognition data
-            Recognition.objects.create(
+            recognition = Recognition.objects.create(
                 user=user,
                 distance=distance,
                 time=timezone.now(),
@@ -92,8 +98,39 @@ class FindClosestEmbeddingView(APIView):
                 "user_inside": user.trackingsubject.is_inside,
                 "embedding_id": closest_embedding.id,
                 "distance": distance,
+                "recognition_id": recognition.id
             }
             return Response(result, status=status.HTTP_200_OK)
         else:
             return Response({"error": "No embeddings found"}, status=status.HTTP_404_NOT_FOUND)
         
+@csrf_exempt
+@require_http_methods(["POST"])
+def create_recognition_view(request):
+    try:
+        data = json.loads(request.body)
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return JsonResponse({
+                'error': 'user_id is required'
+            }, status=400)
+        
+        # Create new recognition
+        recognition = Recognition.objects.create(
+            user_id=user_id,
+            timestamp=timezone.now(),
+            distance=0,
+            photo=None  # No photo provided
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'recognition_id': recognition.id,
+            'user_id': recognition.user_id,
+            'timestamp': recognition.timestamp.isoformat(),
+            'distance': recognition.distance
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

@@ -7,9 +7,11 @@ from django.core.files.storage import default_storage
 from PIL import Image
 import logging
 from django.db.models.functions import Round
-
+from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError
 
 Detection = apps.get_model('stats', 'Detection')
+Entry = apps.get_model('stats', 'Entry')
 Camera = apps.get_model('management', 'Camera')
 Recognition = apps.get_model('face_recognition', 'Recognition')
 
@@ -303,9 +305,6 @@ def create_heatmap_overlay(
     overlay = background * (1 - alpha) + heatmap_colored_bgr * alpha
     return np.clip(overlay, 0, 255).astype(np.uint8)
 
-
-
-
 def plot_points(
     start_time: datetime,
     end_time: datetime,
@@ -536,3 +535,42 @@ def plot_bounding_boxes(
     logger.info(f"Completed bounding box plotting. Generated {len(box_plots)} plots")
     return box_plots
 
+def recognize_entry(recognition_id, user_id):
+    # Get the recognition object
+    recognition = get_object_or_404(Recognition, id=recognition_id)
+    
+    # Check if user already has an active entry (recognition_out is None)
+    active_entry = Entry.objects.filter(
+        user_id=user_id,
+        recognition_out__isnull=True
+    ).first()
+    
+    if active_entry:
+        raise ValidationError("User already has an active entry. Must exit first.")
+    
+    # Create new entry
+    entry = Entry.objects.create(
+        user_id=user_id,
+        recognition_in_id=recognition_id
+    )
+    
+    return entry
+
+def recognize_exit(recognition_id, user_id):
+    # Get the recognition object
+    recognition = get_object_or_404(Recognition, id=recognition_id)
+    
+    # Find the user's active entry
+    active_entry = Entry.objects.filter(
+        user_id=user_id,
+        recognition_out__isnull=True
+    ).first()
+    
+    if not active_entry:
+        raise ValidationError("No active entry found for user. Must enter first.")
+    
+    # Update the entry with exit recognition
+    active_entry.recognition_out = recognition
+    active_entry.save()
+    
+    return active_entry

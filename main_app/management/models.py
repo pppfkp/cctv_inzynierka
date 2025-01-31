@@ -87,23 +87,7 @@ def setting_changed(sender, instance, **kwargs):
         # restart_all_containers_logic(hard=True)
         logging.info(f"Containers restarted due to Setting changes: {instance.key}")
     except Exception as e:
-        logging.error(f"Error restarting containers after Setting change: {e}")
-
-    try:
-        # Only update for threshold settings
-        threshold_settings = [
-            'faceSimilarityTresholdEnterExit',
-            'faceDetectionTresholdEnterExit'
-        ]
-        
-        if instance.key in threshold_settings:
-            update_entry_app_thresholds()
-            logging.info(
-                f"Entry app thresholds updated due to setting change: "
-                f"{instance.key} = {instance.value}"
-            )
-    except Exception as e:
-        logging.error(f"Error updating entry-app thresholds after setting change: {e}")    
+        logging.error(f"Error restarting containers after Setting change: {e}")   
     
 class Zone(models.Model):
     name = models.CharField(max_length=100, unique=True)

@@ -7,8 +7,13 @@ import cv2
 from django.apps import apps
 from django.utils import timezone
 from django.apps import apps
+from django.http import JsonResponse
+from django.core.exceptions import ValidationError
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+import json
 
-from .utils import generate_heatmap, get_detection_statistics, plot_points, plot_bounding_boxes
+from .utils import generate_heatmap, get_detection_statistics, plot_points, plot_bounding_boxes, recognize_entry, recognize_exit
 
 class DetectionSearchForm(forms.Form):
     VISUALIZATION_CHOICES = [
@@ -248,3 +253,58 @@ def entries_list_view(request):
         'currently_inside': currently_inside,
         'time_filter_type': time_filter_type,
     })
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def recognize_entry_view(request):
+    try:
+        data = json.loads(request.body)
+        recognition_id = data.get('recognition_id')
+        user_id = data.get('user_id')
+        
+        if not all([recognition_id, user_id]):
+            return JsonResponse({
+                'error': 'recognition_id and user_id are required'
+            }, status=400)
+        
+        entry = recognize_entry(recognition_id, user_id)
+        
+        return JsonResponse({
+            'status': 'success',
+            'entry_id': entry.id,
+            'user_id': entry.user_id,
+            'recognition_in_id': entry.recognition_in_id
+        })
+        
+    except ValidationError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Internal server error {str(e)}'}, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def recognize_exit_view(request):
+    try:
+        data = json.loads(request.body)
+        recognition_id = data.get('recognition_id')
+        user_id = data.get('user_id')
+        
+        if not all([recognition_id, user_id]):
+            return JsonResponse({
+                'error': 'recognition_id and user_id are required'
+            }, status=400)
+        
+        entry = recognize_exit(recognition_id, user_id)
+        
+        return JsonResponse({
+            'status': 'success',
+            'entry_id': entry.id,
+            'user_id': entry.user_id,
+            'recognition_in_id': entry.recognition_in_id,
+            'recognition_out_id': entry.recognition_out_id
+        })
+        
+    except ValidationError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Internal server error {str(e)}'}, status=500)

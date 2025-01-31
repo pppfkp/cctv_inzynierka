@@ -49,6 +49,8 @@ services:
       PGVECTOR_DB_HOST: ${PGVECTOR_DB_HOST}
       PGVECTOR_DB_PORT: ${PGVECTOR_DB_PORT}
       FACE_SIMILARITY_REQUEST_LINK: "http://main-app:8000/face_recognition/api/recognize/"
+      DJANGO_ENTRY_ENDPOINT: "http://main-app:8000/entry/recognize/"
+      DJANGO_EXIT_ENDPOINT: "http://main-app:8000/exit/recognize/"
     ports:
       - "${ENTRY_APP_PORT}:5000"
     volumes:
