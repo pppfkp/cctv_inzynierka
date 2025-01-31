@@ -49,20 +49,20 @@
             {% if user.face_embeddings.all %}
                 <div class="row g-3">
                     {% for embedding in user.face_embeddings.all %}
-                        <div class="col-md-4 mb-3" id="embedding-{{ embedding.id }}">
-                            <div class="card h-100">
-                                <img src="{{ embedding.photo.url }}" 
-                                     class="card-img-top" 
-                                     alt="Face Embedding Photo">
-                                <div class="card-body text-center">
-                                    <button type="button" 
-                                            class="btn btn-sm btn-danger delete-embedding" 
-                                            data-id="{{ embedding.id }}">
-                                            Delete
-                                    </button>
-                                </div>
+                    <div class="col-md-4 mb-3" id="embedding-{{ embedding.id }}" style="max-width: 200px;">
+                        <div class="card h-100">
+                            <img src="{{ embedding.photo.url }}" 
+                                 class="card-img-top" 
+                                 alt="Face Embedding Photo">
+                            <div class="card-body text-center">
+                                <button type="button" 
+                                        class="btn btn-sm btn-danger delete-embedding" 
+                                        data-id="{{ embedding.id }}">
+                                        Delete
+                                </button>
                             </div>
                         </div>
+                    </div>
                     {% endfor %}
                 </div>
             {% else %}

@@ -11,62 +11,54 @@
         <button class="btn btn-warning hard-reset-all-btn">Hard Reset All Containers</button>
     </div>
     
-    <div class="d-flex flex-wrap justify-content-center">
-        {% for container in camera_containers %}
-        <div class="card m-3" style="max-width: 400px; width: 100%;">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Camera: {{ container.camera_name }}</h5>
-            </div>
-            <div class="card-body">
-                <div class="container-details">
-                    <p class="card-text">
-                        <strong>Container ID:</strong><br>
-                        <span class="text-muted">{{ container.container_id }}</span>
-                    </p>
-                    <p class="card-text">
-                        <strong>Status:</strong><br>
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Camera Name</th>
+                    <th>Container ID</th>
+                    <th>Status</th>
+                    <th>Port</th>
+                    <th>Last Started</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for container in camera_containers %}
+                <tr>
+                    <td>{{ container.camera_name }}</td>
+                    <td>{{ container.container_id }}</td>
+                    <td>
                         <span class="badge {% if container.status == 'running' %}bg-success{% elif container.status == 'not found' %}bg-danger{% else %}bg-warning{% endif %}">
                             {{ container.status }}
                         </span>
-                    </p>
-                    <p class="card-text">
-                        <strong>Port:</strong><br>
-                        <span class="text-muted">{{ container.port }}</span>
-                    </p>
-                    <p class="card-text">
-                        <strong>Last Started:</strong><br>
-                        <span class="text-muted">{{ container.last_started|date:"Y-m-d H:i:s" }}</span>
-                    </p>
-                    {% if container.status != 'running' %}
-                    <button 
-                        class="btn btn-success start-container-btn" 
-                        data-camera-id="{{ container.camera_id }}">
-                        Start Container
-                    </button>
-                    {% endif %}
-                    {% if container.status == 'running' %}
-                    <button 
-                        class="btn btn-danger stop-container-btn" 
-                        data-camera-id="{{ container.camera_id }}">
-                        Stop Container
-                    </button>
-                    <button 
-                        class="btn btn-info soft-restart-container-btn" 
-                        data-camera-id="{{ container.camera_id }}">
-                        Soft Restart
-                    </button>
-                    <button 
-                        class="btn btn-warning hard-restart-container-btn" 
-                        data-camera-id="{{ container.camera_id }}">
-                        Hard Restart
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+                    </td>
+                    <td>{{ container.port }}</td>
+                    <td>{{ container.last_started|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if container.status != 'running' %}
+                        <button class="btn btn-success start-container-btn" data-camera-id="{{ container.camera_id }}">
+                            Start
+                        </button>
+                        {% endif %}
+                        {% if container.status == 'running' %}
+                        <button class="btn btn-danger stop-container-btn" data-camera-id="{{ container.camera_id }}">
+                            Stop
+                        </button>
+                        <button class="btn btn-info soft-restart-container-btn" data-camera-id="{{ container.camera_id }}">
+                            Soft Restart
+                        </button>
+                        <button class="btn btn-warning hard-restart-container-btn" data-camera-id="{{ container.camera_id }}">
+                            Hard Restart
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-</div>
+    
 
 <script>
     document.querySelectorAll('.start-container-btn').forEach(button => {
