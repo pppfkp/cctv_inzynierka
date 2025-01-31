@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from pgvector.django import L2Distance
+import logging
 
 def extract_embedding_view(request):
     if request.method == "POST":
@@ -62,7 +63,8 @@ class FindClosestEmbeddingView(APIView):
             os.makedirs(directory)
 
         # Save the cropped face as an image file
-        cropped_face_image = Image.fromarray(cropped_face.mul(255).permute(1, 2, 0).byte().numpy())
+        normalized_face = (cropped_face + 1) / 2
+        cropped_face_image = Image.fromarray((normalized_face * 255).permute(1, 2, 0).byte().numpy())
         cropped_face_filename = f"{uuid.uuid4().hex}.jpg"
         cropped_face_path = os.path.join(directory, cropped_face_filename)
         cropped_face_image.save(cropped_face_path)

@@ -2,9 +2,12 @@
 from PIL import Image
 import numpy as np
 from .model_loader import get_models, _device
+from management.utils import get_settings
 
-def extract_embedding(photo, confidence_threshold=0.95):
+def extract_embedding(photo):
     try:
+        setting_dict = get_settings()
+        confidence_threshold = float(setting_dict.get("extractEmbeddingTreshold", 0.95))
         # Get models on the specified device
         mtcnn, resnet = get_models()
         
@@ -44,7 +47,7 @@ def extract_embedding(photo, confidence_threshold=0.95):
             print(f"Embedding has unexpected shape: {embedding.shape}")
             return None, None
         
-        return embedding, max_prob  # Return both the embedding and confidence
+        return embedding, cropped_face  # Return both the embedding and cropped face
         
     except Exception as e:
         print(f"Error extracting embedding: {e}")

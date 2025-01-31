@@ -5,6 +5,8 @@ from django import forms
 from datetime import datetime, timedelta
 import cv2
 from django.apps import apps
+from django.utils import timezone
+from django.apps import apps
 
 from .utils import generate_heatmap, get_detection_statistics, plot_points, plot_bounding_boxes
 
@@ -105,8 +107,6 @@ class DetectionSearchView(FormView):
             form.add_error(None, f"Error processing request: {str(e)}")
             return self.form_invalid(form)
         
-from django.utils import timezone
-from django.apps import apps
 
 def entries_live_list_view(request):
     Entry = apps.get_model('stats', 'Entry')
