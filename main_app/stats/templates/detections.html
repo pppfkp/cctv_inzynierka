@@ -51,23 +51,30 @@
                             <span>Total Detections:</span>
                             <strong>{{ total_detections }}</strong>
                         </li>
+                        {% if unrecognized_percentage is not None %}
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Unrecognized Detections:</span>
                             <strong>{{ unrecognized_percentage }}%</strong>
                         </li>
+                        {% endif %}
+                        {% if avg_detections_per_user is not None %}
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Avg Detections per User:</span>
                             <strong>{{ avg_detections_per_user }}</strong>
                         </li>
+                        {% endif %}
+                        {% if avg_detections_per_camera is not None %}
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Avg Detections per Camera:</span>
                             <strong>{{ avg_detections_per_camera }}</strong>
                         </li>
+                        {% endif %}
                     </ul>
                 </div>
                 <div class="col-md-6">
                     <h6>Top Statistics</h6>
                     <ul class="list-group list-group-flush">
+                        {% if top_user %}
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Most Active User:</span>
                             <strong>{{ top_user.user__username }} ({{ top_user.count }})</strong>
@@ -76,6 +83,8 @@
                             <span>Least Active User:</span>
                             <strong>{{ bottom_user.user__username }} ({{ bottom_user.count }})</strong>
                         </li>
+                        {% endif %}
+                        {% if top_camera %}
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Most Active Camera:</span>
                             <strong>{{ top_camera.camera__name }} ({{ top_camera.count }})</strong>
@@ -84,6 +93,7 @@
                             <span>Least Active Camera:</span>
                             <strong>{{ bottom_camera.camera__name }} ({{ bottom_camera.count }})</strong>
                         </li>
+                        {% endif %}
                     </ul>
                 </div>
             </div>
@@ -112,15 +122,15 @@
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Average Time Inside (hours):</span>
-                            <strong>{{ avg_duration|floatformat:2 }}</strong>
+                            <strong>{{ avg_duration }}</strong>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Average First Entry (hour):</span>
-                            <strong>{{ avg_first_entry|floatformat:2 }}</strong>
+                            <strong>{{ avg_first_entry }}</strong>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Average Last Exit (hour):</span>
-                            <strong>{{ avg_last_exit|floatformat:2 }}</strong>
+                            <strong>{{ avg_last_exit }}</strong>
                         </li>
                     </ul>
                 </div>

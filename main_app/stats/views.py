@@ -256,28 +256,36 @@ def detections_view(request):
     
     # Calculate detection statistics
     total_detections = detections.count()
-    unrecognized_detections = detections.filter(user__isnull=True).count()
-    unrecognized_percentage = (unrecognized_detections / total_detections * 100) if total_detections > 0 else 0
     
-    # Detection statistics per user/camera
-    avg_detections_per_user = detections.exclude(user__isnull=True).values('user').annotate(
-        count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+    # Only calculate unrecognized stats if no user filter
+    unrecognized_percentage = None
+    if not username:
+        unrecognized_detections = detections.filter(user__isnull=True).count()
+        unrecognized_percentage = (unrecognized_detections / total_detections * 100) if total_detections > 0 else 0
     
-    avg_detections_per_camera = detections.values('camera').annotate(
-        count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+    # Only calculate user stats if no user filter
+    avg_detections_per_user = None
+    top_user = None
+    bottom_user = None
+    if not username:
+        avg_detections_per_user = detections.exclude(user__isnull=True).values('user').annotate(
+            count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+        top_user = detections.exclude(user__isnull=True).values('user__username').annotate(
+            count=Count('id')).order_by('-count').first()
+        bottom_user = detections.exclude(user__isnull=True).values('user__username').annotate(
+            count=Count('id')).order_by('count').first()
     
-    # Top users and cameras
-    top_user = detections.exclude(user__isnull=True).values('user__username').annotate(
-        count=Count('id')).order_by('-count').first()
-    
-    bottom_user = detections.exclude(user__isnull=True).values('user__username').annotate(
-        count=Count('id')).order_by('count').first()
-    
-    top_camera = detections.values('camera__name').annotate(
-        count=Count('id')).order_by('-count').first()
-    
-    bottom_camera = detections.values('camera__name').annotate(
-        count=Count('id')).order_by('count').first()
+    # Only calculate camera stats if no camera filter
+    avg_detections_per_camera = None
+    top_camera = None
+    bottom_camera = None
+    if not camera_id:
+        avg_detections_per_camera = detections.values('camera').annotate(
+            count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+        top_camera = detections.values('camera__name').annotate(
+            count=Count('id')).order_by('-count').first()
+        bottom_camera = detections.values('camera__name').annotate(
+            count=Count('id')).order_by('count').first()
     
     # Detection time series (30-minute bins)
     detection_timeseries = detections.annotate(
@@ -285,11 +293,11 @@ def detections_view(request):
     ).values('interval').annotate(count=Count('id')).order_by('interval')
 
     detection_timeseries = [
-    {
-        'interval': item['interval'].isoformat(),
-        'count': item['count']
-    }
-    for item in detection_timeseries
+        {
+            'interval': item['interval'].isoformat(),
+            'count': item['count']
+        }
+        for item in detection_timeseries
     ]
     
     # Entry statistics
@@ -301,6 +309,24 @@ def detections_view(request):
         )
     ).aggregate(Avg('duration'))['duration__avg']
     
+    # Format duration as hours and minutes
+    if avg_duration:
+        total_minutes = avg_duration.total_seconds() / 60
+        avg_duration_hours = int(total_minutes // 60)
+        avg_duration_minutes = int(total_minutes % 60)
+        avg_duration_formatted = f"{avg_duration_hours}h {avg_duration_minutes}m"
+    else:
+        avg_duration_formatted = "0h 0m"
+
+    def format_hour_float(hour_float):
+        if hour_float is None:
+            return None
+            
+        hours = int(hour_float)
+        minutes = int((hour_float % 1) * 60)
+    
+        return f"{hours:02d}:{minutes:02d}"
+    
     # Average first entry and last exit times
     avg_first_entry = entries.aggregate(
         avg_time=Avg('recognition_in__time__hour'))['avg_time']
@@ -308,17 +334,20 @@ def detections_view(request):
     avg_last_exit = entries.exclude(recognition_out__isnull=True).aggregate(
         avg_time=Avg('recognition_out__time__hour'))['avg_time']
     
+    formatted_first_entry = format_hour_float(avg_first_entry)
+    formatted_last_exit = format_hour_float(avg_last_exit)
+    
     # Entry/Exit time series
     entry_timeseries = entries.annotate(
         interval=Trunc('recognition_in__time', 'hour')
     ).values('interval').annotate(count=Count('id')).order_by('interval')
 
     entry_timeseries = [
-    {
-        'interval': item['interval'].isoformat(),
-        'count': item['count']
-    }
-    for item in entry_timeseries
+        {
+            'interval': item['interval'].isoformat(),
+            'count': item['count']
+        }
+        for item in entry_timeseries
     ]
     
     exit_timeseries = entries.exclude(recognition_out__isnull=True).annotate(
@@ -326,11 +355,11 @@ def detections_view(request):
     ).values('interval').annotate(count=Count('id')).order_by('interval')
 
     exit_timeseries = [
-    {
-        'interval': item['interval'].isoformat(),
-        'count': item['count']
-    }
-    for item in exit_timeseries
+        {
+            'interval': item['interval'].isoformat(),
+            'count': item['count']
+        }
+        for item in exit_timeseries
     ]
     
     # Get all cameras for dropdown
@@ -342,18 +371,18 @@ def detections_view(request):
         'camera_id': camera_id,
         'cameras': cameras,
         'total_detections': total_detections,
-        'unrecognized_percentage': round(unrecognized_percentage, 2),
-        'avg_detections_per_user': round(avg_detections_per_user, 2),
-        'avg_detections_per_camera': round(avg_detections_per_camera, 2),
+        'unrecognized_percentage': round(unrecognized_percentage, 2) if unrecognized_percentage is not None else None,
+        'avg_detections_per_user': round(avg_detections_per_user, 2) if avg_detections_per_user is not None else None,
+        'avg_detections_per_camera': round(avg_detections_per_camera, 2) if avg_detections_per_camera is not None else None,
         'top_user': top_user,
         'bottom_user': bottom_user,
         'top_camera': top_camera,
         'bottom_camera': bottom_camera,
         'detection_timeseries': json.dumps(list(detection_timeseries)),
         'total_entries': total_entries,
-        'avg_duration': avg_duration.total_seconds() / 3600 if avg_duration else 0,  # Convert to hours
-        'avg_first_entry': round(avg_first_entry, 2) if avg_first_entry else None,
-        'avg_last_exit': round(avg_last_exit, 2) if avg_last_exit else None,
+        'avg_duration': avg_duration_formatted,
+        'avg_first_entry': formatted_first_entry if avg_first_entry else None,
+        'avg_last_exit': formatted_last_exit if avg_last_exit else None,
         'entry_timeseries': json.dumps(list(entry_timeseries)),
         'exit_timeseries': json.dumps(list(exit_timeseries)),
     }
