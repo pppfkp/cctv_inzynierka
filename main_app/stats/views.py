@@ -13,6 +13,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import json
 from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Count, Avg, Max, Min, Q
+from django.db.models.functions import Trunc
+from django.utils import timezone
+from datetime import datetime, timedelta
+from django.db.models import F, ExpressionWrapper, DateTimeField, DurationField
 
 from .utils import recognize_entry, recognize_exit
 
@@ -213,3 +218,144 @@ def recognize_exit_view(request):
         return JsonResponse({'error': str(e)}, status=400)
     except Exception as e:
         return JsonResponse({'error': f'Internal server error {str(e)}'}, status=500)
+    
+def detections_view(request):
+    Entry = apps.get_model('stats', 'Entry')
+    Detection = apps.get_model('stats', 'Detection')
+    User = apps.get_model('auth', 'User')
+    Camera = apps.get_model('management', 'Camera')
+
+    # Get filter parameters
+    date_from = request.GET.get('date_from')
+    username = request.GET.get('username')
+    camera_id = request.GET.get('camera')
+    
+    # Convert date_from to datetime or use today
+    if date_from:
+        date_from = datetime.strptime(date_from, '%Y-%m-%d')
+    else:
+        date_from = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    date_to = date_from + timedelta(days=1)
+    
+    # Base querysets
+    detections = Detection.objects.filter(time__gte=date_from, time__lt=date_to)
+    entries = Entry.objects.filter(
+        Q(recognition_in__time__gte=date_from, recognition_in__time__lt=date_to) |
+        Q(recognition_out__time__gte=date_from, recognition_out__time__lt=date_to)
+    )
+    
+    # Apply filters if provided
+    if username:
+        user = User.objects.get(username=username)
+        detections = detections.filter(user=user)
+        entries = entries.filter(user=user)
+    
+    if camera_id:
+        detections = detections.filter(camera_id=camera_id)
+    
+    # Calculate detection statistics
+    total_detections = detections.count()
+    unrecognized_detections = detections.filter(user__isnull=True).count()
+    unrecognized_percentage = (unrecognized_detections / total_detections * 100) if total_detections > 0 else 0
+    
+    # Detection statistics per user/camera
+    avg_detections_per_user = detections.exclude(user__isnull=True).values('user').annotate(
+        count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+    
+    avg_detections_per_camera = detections.values('camera').annotate(
+        count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+    
+    # Top users and cameras
+    top_user = detections.exclude(user__isnull=True).values('user__username').annotate(
+        count=Count('id')).order_by('-count').first()
+    
+    bottom_user = detections.exclude(user__isnull=True).values('user__username').annotate(
+        count=Count('id')).order_by('count').first()
+    
+    top_camera = detections.values('camera__name').annotate(
+        count=Count('id')).order_by('-count').first()
+    
+    bottom_camera = detections.values('camera__name').annotate(
+        count=Count('id')).order_by('count').first()
+    
+    # Detection time series (30-minute bins)
+    detection_timeseries = detections.annotate(
+        interval=Trunc('time', 'hour', output_field=DateTimeField())
+    ).values('interval').annotate(count=Count('id')).order_by('interval')
+
+    detection_timeseries = [
+    {
+        'interval': item['interval'].isoformat(),
+        'count': item['count']
+    }
+    for item in detection_timeseries
+    ]
+    
+    # Entry statistics
+    total_entries = entries.count()
+    avg_duration = entries.exclude(recognition_out__isnull=True).annotate(
+        duration=ExpressionWrapper(
+            F('recognition_out__time') - F('recognition_in__time'),
+            output_field=DurationField()
+        )
+    ).aggregate(Avg('duration'))['duration__avg']
+    
+    # Average first entry and last exit times
+    avg_first_entry = entries.aggregate(
+        avg_time=Avg('recognition_in__time__hour'))['avg_time']
+    
+    avg_last_exit = entries.exclude(recognition_out__isnull=True).aggregate(
+        avg_time=Avg('recognition_out__time__hour'))['avg_time']
+    
+    # Entry/Exit time series
+    entry_timeseries = entries.annotate(
+        interval=Trunc('recognition_in__time', 'hour')
+    ).values('interval').annotate(count=Count('id')).order_by('interval')
+
+    entry_timeseries = [
+    {
+        'interval': item['interval'].isoformat(),
+        'count': item['count']
+    }
+    for item in entry_timeseries
+    ]
+    
+    exit_timeseries = entries.exclude(recognition_out__isnull=True).annotate(
+        interval=Trunc('recognition_out__time', 'hour')
+    ).values('interval').annotate(count=Count('id')).order_by('interval')
+
+    exit_timeseries = [
+    {
+        'interval': item['interval'].isoformat(),
+        'count': item['count']
+    }
+    for item in exit_timeseries
+    ]
+    
+    # Get all cameras for dropdown
+    cameras = Camera.objects.filter(enabled=True)
+    
+    context = {
+        'date_from': date_from,
+        'username': username,
+        'camera_id': camera_id,
+        'cameras': cameras,
+        'total_detections': total_detections,
+        'unrecognized_percentage': round(unrecognized_percentage, 2),
+        'avg_detections_per_user': round(avg_detections_per_user, 2),
+        'avg_detections_per_camera': round(avg_detections_per_camera, 2),
+        'top_user': top_user,
+        'bottom_user': bottom_user,
+        'top_camera': top_camera,
+        'bottom_camera': bottom_camera,
+        'detection_timeseries': json.dumps(list(detection_timeseries)),
+        'total_entries': total_entries,
+        'avg_duration': avg_duration.total_seconds() / 3600 if avg_duration else 0,  # Convert to hours
+        'avg_first_entry': round(avg_first_entry, 2) if avg_first_entry else None,
+        'avg_last_exit': round(avg_last_exit, 2) if avg_last_exit else None,
+        'entry_timeseries': json.dumps(list(entry_timeseries)),
+        'exit_timeseries': json.dumps(list(exit_timeseries)),
+    }
+    
+    return render(request, 'detections.html', context)

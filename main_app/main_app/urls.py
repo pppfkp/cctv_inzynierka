@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.urls import path, include
 from face_recognition.views import create_recognition_view, extract_embedding_view, FindClosestEmbeddingView
 from management.views import add_camera_view, add_face_embedding_view, camera_streams_raw_view, containers_status_view, delete_camera_view, edit_camera_view, hard_reset_all_containers_view, hard_restart_container_view, soft_reset_all_containers_view, soft_restart_container_view, start_all_containers_view, start_container_view, stop_all_containers_view, stop_container_view
-from stats.views import entries_list_view, recognize_entry_view, recognize_exit_view
+from stats.views import detections_view, entries_list_view, recognize_entry_view, recognize_exit_view
 from django.conf import settings
 from django.conf.urls.static import static
 from management.views import home, camera_streams_view
@@ -66,6 +66,7 @@ urlpatterns = [
     path('recognition/create/', create_recognition_view, name='create_recognition'),
     path('entry/recognize/', recognize_entry_view, name='recognize_entry'),
     path('exit/recognize/', recognize_exit_view, name='recognize_exit'),
+    path('stats/detections/', detections_view, name='detections'),
     
     # face recognition
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),
