@@ -459,8 +459,8 @@ def save_detections(data_batch):
         # Updated INSERT query to match the Detection model with track_id
         insert_query = """
         INSERT INTO stats_detection (
-            user_id, camera_id, track_id, time, xywh
-        ) VALUES (%s, %s, %s, %s, array[%s, %s, %s, %s])
+            user_id, camera_id, track_id, time, x, y, w, h
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         # Transform data_batch to match the query's format

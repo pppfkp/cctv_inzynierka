@@ -9,7 +9,10 @@ class Detection(models.Model):
     camera = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='detections')
     track_id = models.BigIntegerField()
     time = models.DateTimeField()
-    xywh = VectorField(dimensions=4, null=False, blank=False)
+    x = models.IntegerField(default=0)
+    y = models.IntegerField(default=0)
+    w = models.IntegerField(default=0)
+    h = models.IntegerField(default=0)
 
 from django.core.exceptions import ValidationError
 
