@@ -2,21 +2,10 @@ from django.db import models
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from pgvector.django import VectorField
 import logging
 from django.core.exceptions import ValidationError
 
-from .utils import restart_all_containers_logic, update_entry_app_thresholds
-
-# Create your models here.
-class TrackingSubject(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    is_inside = models.BooleanField(default=False)
-
-@receiver(post_save, sender=User)
-def create_tracking_subjects(sender, instance, created, **kwargs):
-    if created:
-        TrackingSubject.objects.create(user=instance)
+from .utils import restart_all_containers_logic
 
 class Camera(models.Model):
     link = models.CharField(max_length=500, unique=True)
@@ -88,21 +77,6 @@ def setting_changed(sender, instance, **kwargs):
         logging.info(f"Containers restarted due to Setting changes: {instance.key}")
     except Exception as e:
         logging.error(f"Error restarting containers after Setting change: {e}")   
-    
-class Zone(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    description = models.CharField(max_length=255, null=True)
-
-    def __str__(self):
-        return f"{self.name}"
-
-class Boundary(models.Model):
-    camera = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='boundaries')
-    zone = models.ForeignKey(Zone, on_delete=models.CASCADE, related_name='boundaries')
-    polygon = VectorField(dimensions=20)
-
-    class Meta:
-        verbose_name_plural = "Boundaries"
 
 class CameraContainer(models.Model):
     camera = models.OneToOneField('Camera', on_delete=models.CASCADE, related_name='container')

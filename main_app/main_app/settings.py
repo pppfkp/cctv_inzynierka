@@ -161,3 +161,6 @@ LOGGING = {
         },
     },
 }
+
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = 'home'

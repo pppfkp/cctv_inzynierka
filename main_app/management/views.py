@@ -10,48 +10,22 @@ from django.views.decorators.csrf import csrf_exempt
 import docker
 from django.apps import apps
 from django.conf import settings
-
 from .forms import SettingForm
 from .utils import hard_restart_container_logic, restart_all_containers_logic, soft_restart_container_logic, start_all_containers_logic, stop_container_logic, start_container_logic, stop_all_containers_logic
 from django.views.decorators.http import require_POST
-
 from django.urls import reverse
 from .forms import CameraForm
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.contrib.admin.views.decorators import staff_member_required
 
-
-
-@csrf_exempt 
-def save_boundary_points(request, boundary_id):
-    Boundary = apps.get_model('management', 'Boundary')
-    if request.method == "POST":
-        try:
-            # Parse the JSON data from the request body
-            data = json.loads(request.body)
-            points = data.get('points', [])
-
-            if not points or len(points) % 2 != 0:
-                return JsonResponse({'error': 'Invalid points data'}, status=400)
-
-            # Update the boundary's polygon field
-            boundary = Boundary.objects.get(id=boundary_id)
-            boundary.polygon = points  # Save the flattened array
-            boundary.save()
-
-            return JsonResponse({'message': 'Boundary points updated successfully'})
-        except Boundary.DoesNotExist:
-            return JsonResponse({'error': 'Boundary not found'}, status=404)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
-    
+@staff_member_required(login_url='admin:login')    
 def home(request):
     return render(request, 'custom_base.html')
 
 # camera streams
 
+@staff_member_required(login_url='admin:login')    
 def camera_streams_view(request):
     server_host = request.get_host().split(':')[0] # Get the server asddresss relative to the client
     CameraContainer = apps.get_model('management', 'CameraContainer')
@@ -71,6 +45,7 @@ def camera_streams_view(request):
     # Render the template with streams data
     return render(request, 'camera_streams.html', {'streams': streams})
 
+@staff_member_required(login_url='admin:login')    
 def camera_streams_raw_view(request):
     server_host = request.get_host().split(':')[0] # Get the server asddresss relative to the client
     CameraContainer = apps.get_model('management', 'CameraContainer')
@@ -93,6 +68,7 @@ def camera_streams_raw_view(request):
 
 # camera containers
 
+@staff_member_required(login_url='admin:login')    
 def containers_status_view(request):
     Setting = apps.get_model('management', 'Setting')
     CameraContainer = apps.get_model('management', 'CameraContainer')
@@ -141,7 +117,8 @@ def containers_status_view(request):
             'error': f"Error connecting to Docker: {e}",
             'camera_containers': []
         })
-
+    
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def start_container_view(request):
@@ -166,6 +143,7 @@ def start_container_view(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
     
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def stop_container_view(request):
@@ -190,6 +168,7 @@ def stop_container_view(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
     
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def soft_restart_container_view(request):
@@ -214,6 +193,7 @@ def soft_restart_container_view(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
     
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def hard_restart_container_view(request):
@@ -238,6 +218,7 @@ def hard_restart_container_view(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def soft_reset_all_containers_view(request):
@@ -249,6 +230,7 @@ def soft_reset_all_containers_view(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def hard_reset_all_containers_view(request):
@@ -260,6 +242,7 @@ def hard_reset_all_containers_view(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def start_all_containers_view(request):
@@ -274,6 +257,7 @@ def start_all_containers_view(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def stop_all_containers_view(request):
@@ -290,11 +274,13 @@ def stop_all_containers_view(request):
 
 # settings
 
+@staff_member_required(login_url='admin:login')    
 def settings_view(request):
     Setting = apps.get_model('management', 'Setting')
     settings = Setting.objects.all()
     return render(request, 'settings.html', {'settings': settings})
 
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def update_setting(request, setting_id):
@@ -315,6 +301,7 @@ def update_setting(request, setting_id):
             'message': form.errors['value'][0]
         }, status=400)
 
+@staff_member_required(login_url='admin:login')    
 @csrf_exempt
 @require_POST
 def reset_all_settings(request):
@@ -337,11 +324,13 @@ def reset_all_settings(request):
     
 #  cameras setup
 
+@staff_member_required(login_url='admin:login')    
 def cameras_setup_view(request):
     Camera = apps.get_model('management', 'Camera')
     cameras = Camera.objects.all()
     return render(request, 'cameras_setup.html', {'cameras': cameras})
 
+@staff_member_required(login_url='admin:login')    
 def add_camera_view(request):
     if request.method == 'POST':
         form = CameraForm(request.POST, request.FILES)
@@ -352,6 +341,7 @@ def add_camera_view(request):
         form = CameraForm()
     return render(request, 'camera_add.html', {'form': form})
 
+@staff_member_required(login_url='admin:login')    
 def edit_camera_view(request, pk):
     Camera = apps.get_model('management', 'Camera')
     camera = get_object_or_404(Camera, pk=pk)
@@ -364,6 +354,7 @@ def edit_camera_view(request, pk):
         form = CameraForm(instance=camera)
     return render(request, 'camera_edit.html', {'form': form, 'camera': camera})
 
+@staff_member_required(login_url='admin:login')    
 def delete_camera_view(request, pk):
     Camera = apps.get_model('management', 'Camera')
     camera = get_object_or_404(Camera, pk=pk)
@@ -374,12 +365,14 @@ def delete_camera_view(request, pk):
 
 # users management
 
+@staff_member_required(login_url='admin:login')    
 def users_list_view(request):
     User = apps.get_model('auth', 'User')
     users = User.objects.filter(is_superuser=False)
     
     return render(request, 'user_list.html', {'users': users})
 
+@staff_member_required(login_url='admin:login')    
 def edit_user_view(request, user_id):
     User = apps.get_model('auth', 'User')
     Group = apps.get_model('auth', 'Group')
@@ -430,6 +423,7 @@ def edit_user_view(request, user_id):
         'all_groups': all_groups,
     })
 
+@staff_member_required(login_url='admin:login')    
 @require_POST
 def delete_user_view(request, user_id):
     User = apps.get_model('auth', 'User')
@@ -443,6 +437,7 @@ def delete_user_view(request, user_id):
     
 # face embeddings
 
+@staff_member_required(login_url='admin:login')    
 @require_POST
 @csrf_exempt  # Only use this if you're not using CSRF token in your AJAX request
 def delete_face_embedding_view(request, embedding_id):
@@ -472,7 +467,8 @@ def delete_face_embedding_view(request, embedding_id):
         # Return error response
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
-# views.py updates
+
+@staff_member_required(login_url='admin:login')    
 @require_POST
 def add_face_embedding_view(request, user_id):
     FaceEmbedding = apps.get_model('face_recognition', 'FaceEmbedding')
@@ -503,6 +499,7 @@ def add_face_embedding_view(request, user_id):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
+@staff_member_required(login_url='admin:login')    
 def add_user_view(request):
     """Handles adding a new user."""
     User = apps.get_model('auth', 'User')

@@ -1,18 +1,31 @@
 # urls.py
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from face_recognition.views import create_recognition_view, extract_embedding_view, FindClosestEmbeddingView
 from management.views import add_camera_view, add_face_embedding_view, camera_streams_raw_view, containers_status_view, delete_camera_view, edit_camera_view, hard_reset_all_containers_view, hard_restart_container_view, soft_reset_all_containers_view, soft_restart_container_view, start_all_containers_view, start_container_view, stop_all_containers_view, stop_container_view
-from stats.views import DetectionSearchView, entries_list_view, entries_live_list_view, recognize_entry_view, recognize_exit_view
+from stats.views import entries_list_view, recognize_entry_view, recognize_exit_view
 from django.conf import settings
 from django.conf.urls.static import static
 from management.views import home, camera_streams_view
-from management.views import save_boundary_points
 from management.views import settings_view, update_setting, reset_all_settings
 from management.views import cameras_setup_view
 from management.views import users_list_view, delete_face_embedding_view, delete_user_view, edit_user_view, add_user_view
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import views as auth_views
+from django.contrib.auth.views import LogoutView
+
+def is_management(user):
+    return user.is_staff 
+
+# Combine login and group check
+def management_required(view_func):
+    decorated_view = login_required(user_passes_test(is_management)(view_func))
+    return decorated_view
+
 urlpatterns = [
-    path('', home, name='home'),
+    path('accounts/', include('django.contrib.auth.urls')),
+    path('logout/', LogoutView.as_view(next_page='admin:login'), name='logout'),
+    path('', management_required(home), name='home'),
 
     # camera containers
     path('containers/status/', containers_status_view, name='containers_status'),
@@ -54,13 +67,13 @@ urlpatterns = [
     path('entry/recognize/', recognize_entry_view, name='recognize_entry'),
     path('exit/recognize/', recognize_exit_view, name='recognize_exit'),
     
-    #other
-    path('admin/', admin.site.urls),
+    # face recognition
     path('face_recognition/extract_embedding/', extract_embedding_view, name='extract-embedding-view'),
     path('face_recognition/api/recognize/', FindClosestEmbeddingView.as_view()),
-    path('save-boundary/<int:boundary_id>/', save_boundary_points, name='save_boundary'),
-    
-    path('detections/search/', DetectionSearchView.as_view(), name='detection_search'),
+
+    # other
+    path('admin/', admin.site.urls),
+
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

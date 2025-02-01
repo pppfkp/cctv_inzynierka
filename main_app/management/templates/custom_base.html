@@ -47,6 +47,16 @@
                 </ul>
               </li>
             </ul>
+            <ul class="navbar-nav ms-auto">
+              <li class="nav-item">
+                {% if user.is_authenticated %}
+                  <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-button btn">Logout</button>
+                  </form>
+                {% endif %}
+              </li>
+            </ul>
           </div>
         </div>
       </nav>
