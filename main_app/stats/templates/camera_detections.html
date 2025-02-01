@@ -24,6 +24,12 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <span class="input-group-text">User</span>
+                    <input type="text" name="user" class="form-control" value="{{ user_filter }}" placeholder="Username or 'none'">
+                </div>
+            </div>
             <div class="col-md-1">
                 <button type="submit" class="btn btn-primary w-100">Search</button>
             </div>
@@ -98,12 +104,10 @@ const heatmapData = {{ heatmap_data|safe }};
 let currentMode = 'points';
 
 function resizeCanvas() {
-    // Set canvas size to match image display size
     const rect = image.getBoundingClientRect();
     canvas.width = rect.width;
     canvas.height = rect.height;
     
-    // Redraw current visualization
     if (currentMode === 'points') {
         drawPoints();
     } else {
@@ -127,7 +131,6 @@ function drawPoints() {
     detectionPoints.forEach(point => {
         const scaled = scaleCoordinates(point.x, point.y);
         ctx.beginPath();
-        // Scale point size based on canvas size
         const pointSize = Math.max(3, Math.min(5, canvas.width / 384));
         ctx.arc(scaled.x, scaled.y, pointSize, 0, Math.PI * 2);
         ctx.fill();
@@ -137,10 +140,7 @@ function drawPoints() {
 function drawHeatmap() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Find max value for normalization
     const maxValue = Math.max(...heatmapData.flat());
-    
-    // Size of each grid cell
     const cellWidth = canvas.width / 48;
     const cellHeight = canvas.height / 27;
     
@@ -160,14 +160,10 @@ function drawHeatmap() {
     });
 }
 
-// Handle resize
 window.addEventListener('resize', resizeCanvas);
 image.addEventListener('load', resizeCanvas);
-
-// Initial setup
 resizeCanvas();
 
-// Button handlers
 document.getElementById('showPoints').addEventListener('click', function() {
     if (currentMode !== 'points') {
         currentMode = 'points';

@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from django.db.models import F, ExpressionWrapper, DateTimeField, DurationField
 from django.shortcuts import get_object_or_404
 from .utils import recognize_entry, recognize_exit
+from django.db.models.functions import ExtractWeekDay
 
 @staff_member_required(login_url='admin:login')    
 def entries_live_list_view(request):
@@ -393,10 +394,12 @@ def camera_detections_view(request):
     Entry = apps.get_model('stats', 'Entry')
     Detection = apps.get_model('stats', 'Detection')
     Camera = apps.get_model('management', 'Camera')
+    User = apps.get_model('auth', 'User')
 
     # Get filter parameters
     date_from = request.GET.get('date_from')
     camera_id = request.GET.get('camera')
+    user_filter = request.GET.get('user', '').strip()
     
     # Convert date_from to datetime or use today
     if date_from:
@@ -412,12 +415,21 @@ def camera_detections_view(request):
     else:
         camera = get_object_or_404(Camera, id=camera_id, enabled=True)
     
-    # Get detections for the camera
+    # Build detection query
     detections = Detection.objects.filter(
         camera=camera,
         time__gte=date_from,
         time__lt=date_to
-    ).values('x', 'y', 'w', 'h', 'time')
+    )
+
+    # Apply user filter
+    if user_filter.lower() == 'none':
+        detections = detections.filter(user__isnull=True)
+    elif user_filter:
+        detections = detections.filter(user__username__iexact=user_filter)
+    
+    # Get values for processing
+    detections = detections.values('x', 'y', 'w', 'h', 'time')
     
     # Calculate foot positions (bottom center of bounding box)
     detection_points = [
@@ -445,9 +457,174 @@ def camera_detections_view(request):
         'date_from': date_from,
         'camera': camera,
         'cameras': cameras,
+        'user_filter': user_filter,
         'detection_points': json.dumps(detection_points),
         'heatmap_data': json.dumps(heatmap_data),
         'total_detections': len(detection_points)
     }
     
     return render(request, 'camera_detections.html', context)
+
+def detections_weekly_view(request):
+    Entry = apps.get_model('stats', 'Entry')
+    Detection = apps.get_model('stats', 'Detection')
+    User = apps.get_model('auth', 'User')
+    Camera = apps.get_model('management', 'Camera')
+
+    # Get filter parameters
+    week_start = request.GET.get('week_start')
+    username = request.GET.get('username') or ''  # Default to empty string instead of None
+    camera_id = request.GET.get('camera')
+    
+    # Convert week_start to datetime or use current week's Monday
+    if week_start:
+        week_start = datetime.strptime(week_start, '%Y-%m-%d')
+    else:
+        today = timezone.now()
+        week_start = today - timedelta(days=today.weekday())
+    
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_end = week_start + timedelta(days=7)
+    
+    # Base querysets with distinct to avoid duplicates
+    detections = Detection.objects.filter(time__gte=week_start, time__lt=week_end)
+    entries = Entry.objects.filter(
+        recognition_in__time__gte=week_start,
+        recognition_in__time__lt=week_end
+    ).distinct()  # Add distinct to avoid duplicates
+    
+    # Apply filters if provided
+    if username.strip():  # Only filter if username is not empty
+        user = User.objects.get(username=username)
+        detections = detections.filter(user=user)
+        entries = entries.filter(user=user)
+    
+    if camera_id:
+        detections = detections.filter(camera_id=camera_id)
+    
+    # Rest of the view remains the same until the context...
+    
+    # Calculate detection statistics
+    total_detections = detections.count()
+    
+    # Only calculate unrecognized stats if no user filter
+    unrecognized_percentage = None
+    if not username.strip():
+        unrecognized_detections = detections.filter(user__isnull=True).count()
+        unrecognized_percentage = (unrecognized_detections / total_detections * 100) if total_detections > 0 else 0
+    
+    # Only calculate user stats if no user filter
+    avg_detections_per_user = None
+    top_user = None
+    bottom_user = None
+    if not username.strip():
+        avg_detections_per_user = detections.exclude(user__isnull=True).values('user').annotate(
+            count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+        top_user = detections.exclude(user__isnull=True).values('user__username').annotate(
+            count=Count('id')).order_by('-count').first()
+        bottom_user = detections.exclude(user__isnull=True).values('user__username').annotate(
+            count=Count('id')).order_by('count').first()
+    
+    # Only calculate camera stats if no camera filter
+    avg_detections_per_camera = None
+    top_camera = None
+    bottom_camera = None
+    if not camera_id:
+        avg_detections_per_camera = detections.values('camera').annotate(
+            count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+        top_camera = detections.values('camera__name').annotate(
+            count=Count('id')).order_by('-count').first()
+        bottom_camera = detections.values('camera__name').annotate(
+            count=Count('id')).order_by('count').first()
+    
+    # Detection time series (by weekday)
+    detection_timeseries = detections.annotate(
+        weekday=ExtractWeekDay('time')
+    ).values('weekday').annotate(count=Count('id')).order_by('weekday')
+
+    # Convert to list of weekday names and ensure all days are present
+    weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    detection_counts = {item['weekday']: item['count'] for item in detection_timeseries}
+    detection_timeseries = [
+        {
+            'weekday': weekdays[i],
+            'count': detection_counts.get(i + 1, 0)  # Adding 1 because ExtractWeekDay returns 1-7
+        }
+        for i in range(7)
+    ]
+    
+    # Entry statistics with distinct count
+    total_entries = entries.count()  # This will now count distinct entries
+    avg_duration = entries.exclude(recognition_out__isnull=True).annotate(
+        duration=ExpressionWrapper(
+            F('recognition_out__time') - F('recognition_in__time'),
+            output_field=DurationField()
+        )
+    ).aggregate(Avg('duration'))['duration__avg']
+    
+    # Format duration as hours and minutes
+    if avg_duration:
+        total_minutes = avg_duration.total_seconds() / 60
+        avg_duration_hours = int(total_minutes // 60)
+        avg_duration_minutes = int(total_minutes % 60)
+        avg_duration_formatted = f"{avg_duration_hours}h {avg_duration_minutes}m"
+    else:
+        avg_duration_formatted = "0h 0m"
+    
+    # Entry/Exit time series by weekday (with distinct)
+    entry_timeseries = entries.annotate(
+        weekday=ExtractWeekDay('recognition_in__time')
+    ).values('weekday').annotate(count=Count('id', distinct=True)).order_by('weekday')
+
+    entry_counts = {item['weekday']: item['count'] for item in entry_timeseries}
+    entry_timeseries = [
+        {
+            'weekday': weekdays[i],
+            'count': entry_counts.get(i + 1, 0)
+        }
+        for i in range(7)
+    ]
+    
+    exit_timeseries = entries.exclude(recognition_out__isnull=True).annotate(
+        weekday=ExtractWeekDay('recognition_out__time')
+    ).values('weekday').annotate(count=Count('id', distinct=True)).order_by('weekday')
+
+    exit_counts = {item['weekday']: item['count'] for item in exit_timeseries}
+    exit_timeseries = [
+        {
+            'weekday': weekdays[i],
+            'count': exit_counts.get(i + 1, 0)
+        }
+        for i in range(7)
+    ]
+    
+    # Get busiest day stats
+    busiest_day_detections = max(detection_timeseries, key=lambda x: x['count'])
+    quietest_day_detections = min(detection_timeseries, key=lambda x: x['count'])
+    
+    # Get all cameras for dropdown
+    cameras = Camera.objects.filter(enabled=True)
+    
+    context = {
+        'week_start': week_start,
+        'username': username,  # Will now be empty string instead of None
+        'camera_id': camera_id,
+        'cameras': cameras,
+        'total_detections': total_detections,
+        'unrecognized_percentage': round(unrecognized_percentage, 2) if unrecognized_percentage is not None else None,
+        'avg_detections_per_user': round(avg_detections_per_user, 2) if avg_detections_per_user is not None else None,
+        'avg_detections_per_camera': round(avg_detections_per_camera, 2) if avg_detections_per_camera is not None else None,
+        'top_user': top_user,
+        'bottom_user': bottom_user,
+        'top_camera': top_camera,
+        'bottom_camera': bottom_camera,
+        'detection_timeseries': json.dumps(detection_timeseries),
+        'total_entries': total_entries,
+        'avg_duration': avg_duration_formatted,
+        'entry_timeseries': json.dumps(entry_timeseries),
+        'exit_timeseries': json.dumps(exit_timeseries),
+        'busiest_day_detections': busiest_day_detections,
+        'quietest_day_detections': quietest_day_detections,
+    }
+    
+    return render(request, 'detections_weekly.html', context)
