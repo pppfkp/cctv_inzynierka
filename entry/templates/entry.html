@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Entry{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h2 class="mb-4">Entry Recognition</h2>
+    <div class="video-container mb-4">
+        <video id="video" class="img-fluid" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+    <button id="recognizeBtn" class="btn btn-primary btn-lg">Recognize Entry</button>
+    <div id="statusMessage" class="status-message mt-3" style="display: none;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    
+    // Access webcam
+    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+        .then(function(stream) {
+            video.srcObject = stream;
+        })
+        .catch(function(err) {
+            console.error("Error accessing webcam:", err);
+            $('#statusMessage')
+                .removeClass()
+                .addClass('alert alert-danger')
+                .text("Error accessing webcam: " + err.message)
+                .show();
+        });
+
+    $('#recognizeBtn').click(function() {
+        // Set canvas dimensions to match video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw current video frame to canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data as base64
+        const imageData = canvas.toDataURL('image/jpeg');
+        
+        // Send to server
+        $.ajax({
+            url: '/recognize_entry',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ image: imageData }),
+            success: function(data) {
+                const statusDiv = $('#statusMessage');
+                statusDiv.removeClass('alert-success alert-warning alert-danger');
+                
+                switch(data.status) {
+                    case 'success':
+                        statusDiv.addClass('alert alert-success');
+                        break;
+                    case 'warning':
+                        statusDiv.addClass('alert alert-warning');
+                        break;
+                    case 'error':
+                        statusDiv.addClass('alert alert-danger');
+                        break;
+                }
+                
+                statusDiv.text(data.message).show();
+            },
+            error: function(xhr, status, error) {
+                $('#statusMessage')
+                    .removeClass()
+                    .addClass('alert alert-danger')
+                    .text("Error sending image: " + error)
+                    .show();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

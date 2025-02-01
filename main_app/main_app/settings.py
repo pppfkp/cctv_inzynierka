@@ -33,13 +33,16 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     'host.docker.internal',
-    'localhost'
+    'localhost',
+    'entry-app',
+    'main-app',
+    '100.65.141.3',
+    '192.168.0.104'
 ]
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -47,7 +50,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'management',
     'face_recognition',
-    'stats'
+    'stats',
+    'django.contrib.admin',
 ]
 
 MIDDLEWARE = [
@@ -136,3 +140,27 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = 'home'

@@ -30,6 +30,32 @@ def video_feed():
 
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
+@app.route('/video_feed_raw')
+def video_feed_raw():
+    from utils import open_camera, CAMERA_LINK  # Import here to avoid circular import
+
+    # Open a separate camera stream for raw feed
+    raw_cap = open_camera(CAMERA_LINK)
+
+    def generate():
+        while True:
+            frame = raw_cap.read()
+            if frame is not None:
+                _, encoded_image = cv2.imencode(".jpg", frame)
+                frame_bytes = encoded_image.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            else:
+                # Provide a default frame
+                default_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                _, encoded_image = cv2.imencode(".jpg", default_frame)
+                frame_bytes = encoded_image.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                time.sleep(0.1)
+
+    return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+
 if __name__ == '__main__':
     server.start_receiving()  # Start receiving frames in background thread
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)

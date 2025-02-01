@@ -4,11 +4,6 @@ FROM ultralytics/ultralytics:8.3.57
 # Set the working directory
 WORKDIR /usr/src/app
 
-# # Upgrade pip and install dependencies
-# RUN pip install --upgrade pip
-# COPY ./requirements.txt .
-# RUN pip install --no-cache-dir -r requirements.txt
-
 # Upgrade pip and install dependencies
 RUN pip install --upgrade pip
 COPY ./requirements.txt .

@@ -59,7 +59,7 @@
             button.style.pointerEvents = 'none';
             button.style.opacity = '0.5';
             
-            fetch('{% url "restart_containers" %}', {
+            fetch('{% url "hard_reset_all_containers" %}', {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,

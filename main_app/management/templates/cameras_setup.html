@@ -1,0 +1,79 @@
+{% extends 'custom_base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-center mb-0">Cameras Setup</h1>
+        <a href="{% url 'add_camera' %}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add Camera
+        </a>
+    </div>
+    
+    <table class="table table-striped table-bordered text-center align-middle">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Link</th>
+                <th>Enabled</th>
+                <th>Photo Path</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for camera in cameras %}
+            <tr id="camera-row-{{ camera.id }}">
+                <td>{{ camera.name }}</td>
+                <td>{{ camera.link }}</td>
+                <td>
+                    <input type="checkbox" class="form-check-input" {% if camera.enabled %}checked{% endif %} disabled>
+                </td>
+                <td>
+                    <a href="{{ camera.photo.url }}">{{ camera.photo.url }}</a>
+                </td>
+                <td>
+                    <a href="{% url 'edit_camera' camera.id %}" class="btn btn-sm btn-primary m-1">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <button class="btn btn-sm btn-danger delete-camera m-1" data-id="{{ camera.id }}">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteButtons = document.querySelectorAll('.delete-camera');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const cameraId = this.dataset.id;
+            if (confirm('Are you sure you want to delete this camera?')) {
+                fetch(`/delete-camera/${cameraId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById(`camera-row-${cameraId}`).remove();
+                    } else {
+                        alert(data.message || 'Failed to delete camera.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred.');
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

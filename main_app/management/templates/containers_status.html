@@ -1,0 +1,309 @@
+{% extends 'custom_base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4">Camera Containers Status</h1>
+
+    <div class="text-center mb-4">
+        <button class="start-all-btn btn btn-success">Start All Containers</button>
+        <button class="stop-all-btn btn btn-danger">Stop All Containers</button>
+        <button class="btn btn-info soft-reset-all-btn">Soft Reset All Containers</button>
+        <button class="btn btn-warning hard-reset-all-btn">Hard Reset All Containers</button>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Camera Name</th>
+                    <th>Container ID</th>
+                    <th>Status</th>
+                    <th>Port</th>
+                    <th>Last Started</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for container in camera_containers %}
+                <tr>
+                    <td>{{ container.camera_name }}</td>
+                    <td>{{ container.container_id }}</td>
+                    <td>
+                        <span class="badge {% if container.status == 'running' %}bg-success{% elif container.status == 'not found' %}bg-danger{% else %}bg-warning{% endif %}">
+                            {{ container.status }}
+                        </span>
+                    </td>
+                    <td>{{ container.port }}</td>
+                    <td>{{ container.last_started|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if container.status != 'running' %}
+                        <button class="btn btn-success start-container-btn" data-camera-id="{{ container.camera_id }}">
+                            Start
+                        </button>
+                        {% endif %}
+                        {% if container.status == 'running' %}
+                        <button class="btn btn-danger stop-container-btn" data-camera-id="{{ container.camera_id }}">
+                            Stop
+                        </button>
+                        <button class="btn btn-info soft-restart-container-btn" data-camera-id="{{ container.camera_id }}">
+                            Soft Restart
+                        </button>
+                        <button class="btn btn-warning hard-restart-container-btn" data-camera-id="{{ container.camera_id }}">
+                            Hard Restart
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+
+<script>
+    document.querySelectorAll('.start-container-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const cameraId = this.getAttribute('data-camera-id');
+
+            this.setAttribute('disabled', true);
+
+            fetch("{% url 'start_container' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ camera_id: cameraId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert(data.message);
+                    location.reload();
+                }
+                this.setAttribute('disabled', false);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred.');
+            });
+        });
+    });
+
+    document.querySelectorAll('.stop-container-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const cameraId = this.getAttribute('data-camera-id');
+
+            this.setAttribute('disabled', true);
+
+            fetch("{% url 'stop_container' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ camera_id: cameraId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert(data.message);
+                    location.reload();
+                }
+
+                this.setAttribute('disabled', false);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred.');
+            });
+        });
+    });
+
+    // Soft Restart
+    document.querySelectorAll('.soft-restart-container-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const cameraId = this.getAttribute('data-camera-id');
+
+            this.setAttribute('disabled', true);
+
+            fetch("{% url 'soft_restart_container' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ camera_id: cameraId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert(data.message);
+                    location.reload();
+                }
+
+                this.setAttribute('disabled', false);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred.');
+            });
+        });
+    });
+
+    // Hard Restart
+    document.querySelectorAll('.hard-restart-container-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const cameraId = this.getAttribute('data-camera-id');
+
+            this.setAttribute('disabled', true);
+
+            fetch("{% url 'hard_restart_container' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ camera_id: cameraId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert(data.message);
+                    location.reload();
+                }
+
+                this.setAttribute('disabled', false);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred.');
+            });
+        });
+    });
+
+    // Soft Reset All Containers
+    document.querySelector('.soft-reset-all-btn').addEventListener('click', function () {
+        this.setAttribute('disabled', true);
+
+        fetch("{% url 'soft_reset_all_containers' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                location.reload();
+            }
+
+            this.removeAttribute('disabled');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An unexpected error occurred.');
+            this.removeAttribute('disabled');
+        });
+    });
+
+    // Hard Reset All Containers
+    document.querySelector('.hard-reset-all-btn').addEventListener('click', function () {
+        this.setAttribute('disabled', true);
+
+        fetch("{% url 'hard_reset_all_containers' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                location.reload();
+            }
+
+            this.removeAttribute('disabled');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An unexpected error occurred.');
+            this.removeAttribute('disabled');
+        });
+    });
+
+    // Start All Containers
+    document.querySelector('.start-all-btn').addEventListener('click', function () {
+        this.setAttribute('disabled', true);
+
+        fetch("{% url 'start_all_containers' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                location.reload();  // Optionally reload page
+            }
+
+            this.removeAttribute('disabled');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An unexpected error occurred.');
+            this.removeAttribute('disabled');
+        });
+    });
+
+    // Stop All Containers
+    document.querySelector('.stop-all-btn').addEventListener('click', function () {
+        this.setAttribute('disabled', true);
+
+        fetch("{% url 'stop_all_containers' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                location.reload();  // Optionally reload page
+            }
+
+            this.removeAttribute('disabled');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An unexpected error occurred.');
+            this.removeAttribute('disabled');
+        });
+    });
+</script>
+{% endblock %}

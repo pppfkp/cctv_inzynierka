@@ -10,6 +10,9 @@ from PIL import Image
 from io import BytesIO
 import base64
 
+from django.contrib.auth.models import Group, User
+from django.contrib.auth.admin import GroupAdmin, UserAdmin
+
 class FaceEmbeddingAdmin(admin.ModelAdmin):
     list_display = ('user', 'photo')
     readonly_fields = ('embedding',)
@@ -38,6 +41,10 @@ class FaceEmbeddingAdmin(admin.ModelAdmin):
         return fields
 
 admin.site.register(FaceEmbedding, FaceEmbeddingAdmin)
+
+
+admin.site.register(Group, GroupAdmin)
+admin.site.register(User, UserAdmin)
 
 admin.site.register(Recognition)
 
