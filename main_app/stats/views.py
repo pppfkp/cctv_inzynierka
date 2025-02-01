@@ -18,7 +18,7 @@ from django.db.models.functions import Trunc
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.db.models import F, ExpressionWrapper, DateTimeField, DurationField
-
+from django.shortcuts import get_object_or_404
 from .utils import recognize_entry, recognize_exit
 
 @staff_member_required(login_url='admin:login')    
@@ -388,3 +388,66 @@ def detections_view(request):
     }
     
     return render(request, 'detections.html', context)
+
+def camera_detections_view(request):
+    Entry = apps.get_model('stats', 'Entry')
+    Detection = apps.get_model('stats', 'Detection')
+    Camera = apps.get_model('management', 'Camera')
+
+    # Get filter parameters
+    date_from = request.GET.get('date_from')
+    camera_id = request.GET.get('camera')
+    
+    # Convert date_from to datetime or use today
+    if date_from:
+        date_from = datetime.strptime(date_from, '%Y-%m-%d')
+    else:
+        date_from = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    date_to = date_from + timedelta(days=1)
+    
+    # Get camera or 404
+    if not camera_id:
+        camera = Camera.objects.filter(enabled=True).first()
+    else:
+        camera = get_object_or_404(Camera, id=camera_id, enabled=True)
+    
+    # Get detections for the camera
+    detections = Detection.objects.filter(
+        camera=camera,
+        time__gte=date_from,
+        time__lt=date_to
+    ).values('x', 'y', 'w', 'h', 'time')
+    
+    # Calculate foot positions (bottom center of bounding box)
+    detection_points = [
+        {
+            'x': d['x'],
+            'y': d['y'] + (d['h'] / 2),  # Bottom center
+            'time': d['time'].isoformat()
+        } for d in detections
+    ]
+    
+    # Create heatmap data
+    # We'll create a 48x27 grid (40px squares for 1920x1080)
+    heatmap_data = [[0 for _ in range(48)] for _ in range(27)]
+    
+    for point in detection_points:
+        # Convert coordinates to grid positions
+        grid_x = min(47, max(0, int(point['x'] * 48 / 1920)))
+        grid_y = min(26, max(0, int(point['y'] * 27 / 1080)))
+        heatmap_data[grid_y][grid_x] += 1
+    
+    # Get all cameras for dropdown
+    cameras = Camera.objects.filter(enabled=True)
+    
+    context = {
+        'date_from': date_from,
+        'camera': camera,
+        'cameras': cameras,
+        'detection_points': json.dumps(detection_points),
+        'heatmap_data': json.dumps(heatmap_data),
+        'total_detections': len(detection_points)
+    }
+    
+    return render(request, 'camera_detections.html', context)
