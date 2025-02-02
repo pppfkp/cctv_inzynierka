@@ -400,16 +400,33 @@ def camera_detections_view(request):
 
     # Get filter parameters
     date_from = request.GET.get('date_from')
+    time_from = request.GET.get('time_from', '00:00')
+    date_to = request.GET.get('date_to')
+    time_to = request.GET.get('time_to', '23:59')
     camera_id = request.GET.get('camera')
     user_filter = request.GET.get('user', '').strip()
     
-    # Convert date_from to datetime or use today
-    if date_from:
-        date_from = datetime.strptime(date_from, '%Y-%m-%d')
+    # Convert date_from and date_to to datetime or use today
+    now = timezone.now()
+    if date_from and time_from:
+        try:
+            datetime_from = timezone.make_aware(
+                datetime.strptime(f"{date_from} {time_from}", '%Y-%m-%d %H:%M')
+            )
+        except ValueError:
+            datetime_from = now.replace(hour=0, minute=0, second=0, microsecond=0)
     else:
-        date_from = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        datetime_from = now.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    date_to = date_from + timedelta(days=1)
+    if date_to and time_to:
+        try:
+            datetime_to = timezone.make_aware(
+                datetime.strptime(f"{date_to} {time_to}", '%Y-%m-%d %H:%M')
+            )
+        except ValueError:
+            datetime_to = datetime_from + timedelta(days=1)
+    else:
+        datetime_to = datetime_from + timedelta(days=1)
     
     # Get camera or 404
     if not camera_id:
@@ -420,8 +437,8 @@ def camera_detections_view(request):
     # Build detection query
     detections = Detection.objects.filter(
         camera=camera,
-        time__gte=date_from,
-        time__lt=date_to
+        time__gte=datetime_from,
+        time__lt=datetime_to
     )
 
     # Apply user filter
@@ -456,7 +473,10 @@ def camera_detections_view(request):
     cameras = Camera.objects.filter(enabled=True)
     
     context = {
-        'date_from': date_from,
+        'date_from': datetime_from,
+        'time_from': datetime_from.strftime('%H:%M'),
+        'date_to': datetime_to,
+        'time_to': datetime_to.strftime('%H:%M'),
         'camera': camera,
         'cameras': cameras,
         'user_filter': user_filter,
