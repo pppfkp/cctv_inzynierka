@@ -1,0 +1,208 @@
+{% extends 'custom_base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-center mb-0">Detection Stats Daily</h1>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <form method="get" class="mb-4">
+        <div class="row g-3">
+            <div class="col-md-2">
+                <div class="input-group">
+                    <span class="input-group-text">Day</span>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <span class="input-group-text">User</span>
+                    <input type="text" name="username" class="form-control" value="{{ username }}" placeholder="Search by username">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="camera" class="form-select" aria-label="Select Camera">
+                    <option value="">Select Camera</option>
+                    {% for camera in cameras %}
+                    <option value="{{ camera.id }}" {% if camera.id|stringformat:"s" == camera_id %}selected{% endif %}>
+                        {{ camera.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">Search</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Detection Stats Card -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0">Detections</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Overall Statistics</h6>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Total Detections:</span>
+                            <strong>{{ total_detections }}</strong>
+                        </li>
+                        {% if unrecognized_percentage is not None %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Unrecognized Detections:</span>
+                            <strong>{{ unrecognized_percentage }}%</strong>
+                        </li>
+                        {% endif %}
+                        {% if avg_detections_per_user is not None %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Avg Detections per User:</span>
+                            <strong>{{ avg_detections_per_user }}</strong>
+                        </li>
+                        {% endif %}
+                        {% if avg_detections_per_camera is not None %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Avg Detections per Camera:</span>
+                            <strong>{{ avg_detections_per_camera }}</strong>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Top Statistics</h6>
+                    <ul class="list-group list-group-flush">
+                        {% if top_user %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Most Active User:</span>
+                            <strong>{{ top_user.user__username }} ({{ top_user.count }})</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Least Active User:</span>
+                            <strong>{{ bottom_user.user__username }} ({{ bottom_user.count }})</strong>
+                        </li>
+                        {% endif %}
+                        {% if top_camera %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Most Active Camera:</span>
+                            <strong>{{ top_camera.camera__name }} ({{ top_camera.count }})</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Least Active Camera:</span>
+                            <strong>{{ bottom_camera.camera__name }} ({{ bottom_camera.count }})</strong>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6>Detections Over Time</h6>
+                    <canvas id="detectionsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entries Stats Card -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0">Entries</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Overall Statistics</h6>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Total Entries:</span>
+                            <strong>{{ total_entries }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Average Time Inside (hours):</span>
+                            <strong>{{ avg_duration }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Average First Entry (hour):</span>
+                            <strong>{{ avg_first_entry }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Average Last Exit (hour):</span>
+                            <strong>{{ avg_last_exit }}</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6>Entries and Exits Over Time</h6>
+                    <canvas id="entriesExitsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Detections Chart
+const detectionsData = {{ detection_timeseries|safe }};
+new Chart(document.getElementById('detectionsChart'), {
+    type: 'bar',
+    data: {
+        labels: detectionsData.map(d => new Date(d.interval).toLocaleTimeString()),
+        datasets: [{
+            label: 'Detections',
+            data: detectionsData.map(d => d.count),
+            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Entries/Exits Chart
+const entriesData = {{ entry_timeseries|safe }};
+const exitsData = {{ exit_timeseries|safe }};
+new Chart(document.getElementById('entriesExitsChart'), {
+    type: 'line',
+    data: {
+        labels: entriesData.map(d => new Date(d.interval).toLocaleTimeString()),
+        datasets: [{
+            label: 'Entries',
+            data: entriesData.map(d => d.count),
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1
+        },
+        {
+            label: 'Exits',
+            data: exitsData.map(d => d.count),
+            borderColor: 'rgba(255, 99, 132, 1)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

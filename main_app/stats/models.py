@@ -4,14 +4,16 @@ from face_recognition.models import Recognition
 from management.models import Camera
 from pgvector.django import VectorField
 
+
 class Detection(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='detections', null=True)
     camera = models.ForeignKey(Camera, on_delete=models.CASCADE, related_name='detections')
     track_id = models.BigIntegerField()
     time = models.DateTimeField()
-    xywh = VectorField(dimensions=4, null=False, blank=False)
-
-from django.core.exceptions import ValidationError
+    x = models.IntegerField(default=0)
+    y = models.IntegerField(default=0)
+    w = models.IntegerField(default=0)
+    h = models.IntegerField(default=0)
 
 class Entry(models.Model):
     user = models.ForeignKey(

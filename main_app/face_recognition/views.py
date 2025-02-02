@@ -9,6 +9,7 @@ from io import BytesIO
 from django.conf import settings
 
 from .models import FaceEmbedding, Recognition
+from stats.models import Entry
 from .utils import extract_embedding
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -95,7 +96,7 @@ class FindClosestEmbeddingView(APIView):
             result = {
                 "user_id": user.id,
                 "user_name": user.username,
-                "user_inside": user.trackingsubject.is_inside,
+                "user_inside": Entry.objects.filter(recognition_out__isnull=True, user_id=user.id).exists(),
                 "embedding_id": closest_embedding.id,
                 "distance": distance,
                 "recognition_id": recognition.id

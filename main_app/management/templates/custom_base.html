@@ -16,9 +16,6 @@
           <div class="collapse navbar-collapse" id="navbarSupportedContent">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
               <li class="nav-item">
-                <a class="nav-link" aria-current="page" href="index.html">Dashboard</a>
-              </li>
-              <li class="nav-item">
                 <a class="nav-link" href="{% url 'cameras_setup' %}">Cameras Setup</a>
               </li>
               <li class="nav-item">
@@ -43,7 +40,10 @@
                   <li><a class="dropdown-item" href="{% url 'camera_streams' %}">Live Augumented View</a></li>
                   <li><a class="dropdown-item" href="{% url 'camera_streams_raw' %}">Live Raw View</a></li>
                   <li><a class="dropdown-item" href="{% url 'entries_list' %}">Entries</a></li>
-                  <li><a class="dropdown-item" href="#">Stats</a></li>
+                  <li><a class="dropdown-item" href="{% url 'detections' %}">Daily Stats</a></li>
+                  <li><a class="dropdown-item" href="{% url 'detections_weekly' %}">Weekly Stats</a></li>
+                  <li><a class="dropdown-item" href="{% url 'detections_monthly' %}">Monthly Stats</a></li>
+                  <li><a class="dropdown-item" href="{% url 'camera_detections' %}">Heatmaps</a></li>
                 </ul>
               </li>
             </ul>

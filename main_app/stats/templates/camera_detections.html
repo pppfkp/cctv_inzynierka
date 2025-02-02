@@ -1,0 +1,185 @@
+{% extends 'custom_base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-center mb-0">Camera Detection Visualization</h1>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <form method="get" class="mb-4">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="input-group">
+                    <span class="input-group-text">Day</span>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="camera" class="form-select" aria-label="Select Camera">
+                    {% for cam in cameras %}
+                    <option value="{{ cam.id }}" {% if cam.id == camera.id %}selected{% endif %}>
+                        {{ cam.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <span class="input-group-text">User</span>
+                    <input type="text" name="user" class="form-control" value="{{ user_filter }}" placeholder="Username or 'none'">
+                </div>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">Search</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ camera.name }}</h5>
+                <span>Total Detections: {{ total_detections }}</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary active" id="showPoints">Show Points</button>
+                        <button type="button" class="btn btn-outline-primary" id="showHeatmap">Show Heatmap</button>
+                    </div>
+                </div>
+            </div>
+            <div class="detection-container">
+                <div class="detection-wrapper">
+                    <img id="cameraImage" src="{{ camera.photo.url }}" alt="Camera Reference" class="camera-image">
+                    <canvas id="detectionCanvas" class="detection-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.detection-container {
+    width: 100%;
+    overflow: hidden;
+}
+
+.detection-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    height: 0;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+}
+
+.camera-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.detection-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+</style>
+
+<script>
+const canvas = document.getElementById('detectionCanvas');
+const ctx = canvas.getContext('2d');
+const image = document.getElementById('cameraImage');
+const detectionPoints = {{ detection_points|safe }};
+const heatmapData = {{ heatmap_data|safe }};
+let currentMode = 'points';
+
+function resizeCanvas() {
+    const rect = image.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    if (currentMode === 'points') {
+        drawPoints();
+    } else {
+        drawHeatmap();
+    }
+}
+
+function scaleCoordinates(x, y) {
+    const scaleX = canvas.width / 1920;
+    const scaleY = canvas.height / 1080;
+    return {
+        x: x * scaleX,
+        y: y * scaleY
+    };
+}
+
+function drawPoints() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+    
+    detectionPoints.forEach(point => {
+        const scaled = scaleCoordinates(point.x, point.y);
+        ctx.beginPath();
+        const pointSize = Math.max(3, Math.min(5, canvas.width / 384));
+        ctx.arc(scaled.x, scaled.y, pointSize, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+function drawHeatmap() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const maxValue = Math.max(...heatmapData.flat());
+    const cellWidth = canvas.width / 48;
+    const cellHeight = canvas.height / 27;
+    
+    heatmapData.forEach((row, y) => {
+        row.forEach((value, x) => {
+            if (value > 0) {
+                const intensity = value / maxValue;
+                ctx.fillStyle = `rgba(255, 0, 0, ${intensity * 0.7})`;
+                ctx.fillRect(
+                    x * cellWidth,
+                    y * cellHeight,
+                    cellWidth,
+                    cellHeight
+                );
+            }
+        });
+    });
+}
+
+window.addEventListener('resize', resizeCanvas);
+image.addEventListener('load', resizeCanvas);
+resizeCanvas();
+
+document.getElementById('showPoints').addEventListener('click', function() {
+    if (currentMode !== 'points') {
+        currentMode = 'points';
+        this.classList.add('active');
+        document.getElementById('showHeatmap').classList.remove('active');
+        drawPoints();
+    }
+});
+
+document.getElementById('showHeatmap').addEventListener('click', function() {
+    if (currentMode !== 'heatmap') {
+        currentMode = 'heatmap';
+        this.classList.add('active');
+        document.getElementById('showPoints').classList.remove('active');
+        drawHeatmap();
+    }
+});
+</script>
+{% endblock %}
