@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from django.db.models import F, ExpressionWrapper, DateTimeField, DurationField
 from django.shortcuts import get_object_or_404
 from .utils import recognize_entry, recognize_exit
-from django.db.models.functions import ExtractWeekDay
+from django.db.models.functions import ExtractWeekDay, ExtractDay
 
 @staff_member_required(login_url='admin:login')    
 def entries_live_list_view(request):
@@ -193,7 +193,7 @@ def recognize_entry_view(request):
         return JsonResponse({'error': f'Internal server error {str(e)}'}, status=500)
 
 @csrf_exempt
-@require_http_methods(["POST"])
+@require_http_methods(["POST"]) 
 def recognize_exit_view(request):
     try:
         data = json.loads(request.body)
@@ -220,6 +220,7 @@ def recognize_exit_view(request):
     except Exception as e:
         return JsonResponse({'error': f'Internal server error {str(e)}'}, status=500)
     
+@staff_member_required(login_url='admin:login')    
 def detections_view(request):
     Entry = apps.get_model('stats', 'Entry')
     Detection = apps.get_model('stats', 'Detection')
@@ -390,6 +391,7 @@ def detections_view(request):
     
     return render(request, 'detections.html', context)
 
+@staff_member_required(login_url='admin:login')    
 def camera_detections_view(request):
     Entry = apps.get_model('stats', 'Entry')
     Detection = apps.get_model('stats', 'Detection')
@@ -465,6 +467,7 @@ def camera_detections_view(request):
     
     return render(request, 'camera_detections.html', context)
 
+@staff_member_required(login_url='admin:login')    
 def detections_weekly_view(request):
     Entry = apps.get_model('stats', 'Entry')
     Detection = apps.get_model('stats', 'Detection')
@@ -628,3 +631,171 @@ def detections_weekly_view(request):
     }
     
     return render(request, 'detections_weekly.html', context)
+
+@staff_member_required(login_url='admin:login')    
+def detections_monthly_view(request):
+    Entry = apps.get_model('stats', 'Entry')
+    Detection = apps.get_model('stats', 'Detection')
+    User = apps.get_model('auth', 'User')
+    Camera = apps.get_model('management', 'Camera')
+
+    # Get filter parameters
+    month_start = request.GET.get('month_start')
+    username = request.GET.get('username') or ''
+    camera_id = request.GET.get('camera')
+    
+    # Convert month_start to datetime or use current month's first day
+    if month_start:
+        month_start = datetime.strptime(month_start, '%Y-%m')
+    else:
+        today = timezone.now()
+        month_start = today.replace(day=1)
+    
+    month_start = month_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    if month_start.month == 12:
+        month_end = month_start.replace(year=month_start.year + 1, month=1)
+    else:
+        month_end = month_start.replace(month=month_start.month + 1)
+    
+    # Base querysets with distinct to avoid duplicates
+    detections = Detection.objects.filter(time__gte=month_start, time__lt=month_end)
+    entries = Entry.objects.filter(
+        recognition_in__time__gte=month_start,
+        recognition_in__time__lt=month_end
+    ).distinct()
+    
+    # Apply filters if provided
+    if username.strip():
+        user = User.objects.get(username=username)
+        detections = detections.filter(user=user)
+        entries = entries.filter(user=user)
+    
+    if camera_id:
+        detections = detections.filter(camera_id=camera_id)
+    
+    # Calculate detection statistics
+    total_detections = detections.count()
+    
+    # Only calculate unrecognized stats if no user filter
+    unrecognized_percentage = None
+    if not username.strip():
+        unrecognized_detections = detections.filter(user__isnull=True).count()
+        unrecognized_percentage = (unrecognized_detections / total_detections * 100) if total_detections > 0 else 0
+    
+    # Only calculate user stats if no user filter
+    avg_detections_per_user = None
+    top_user = None
+    bottom_user = None
+    if not username.strip():
+        avg_detections_per_user = detections.exclude(user__isnull=True).values('user').annotate(
+            count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+        top_user = detections.exclude(user__isnull=True).values('user__username').annotate(
+            count=Count('id')).order_by('-count').first()
+        bottom_user = detections.exclude(user__isnull=True).values('user__username').annotate(
+            count=Count('id')).order_by('count').first()
+    
+    # Only calculate camera stats if no camera filter
+    avg_detections_per_camera = None
+    top_camera = None
+    bottom_camera = None
+    if not camera_id:
+        avg_detections_per_camera = detections.values('camera').annotate(
+            count=Count('id')).aggregate(Avg('count'))['count__avg'] or 0
+        top_camera = detections.values('camera__name').annotate(
+            count=Count('id')).order_by('-count').first()
+        bottom_camera = detections.values('camera__name').annotate(
+            count=Count('id')).order_by('count').first()
+    
+    # Detection time series (by day of month)
+    detection_timeseries = detections.annotate(
+        day=ExtractDay('time')
+    ).values('day').annotate(count=Count('id')).order_by('day')
+
+    # Ensure all days of the month are present
+    days_in_month = (month_end - month_start).days
+    detection_counts = {item['day']: item['count'] for item in detection_timeseries}
+    detection_timeseries = [
+        {
+            'day': i + 1,
+            'count': detection_counts.get(i + 1, 0)
+        }
+        for i in range(days_in_month)
+    ]
+    
+    # Entry statistics
+    total_entries = entries.count()
+    avg_duration = entries.exclude(recognition_out__isnull=True).annotate(
+        duration=ExpressionWrapper(
+            F('recognition_out__time') - F('recognition_in__time'),
+            output_field=DurationField()
+        )
+    ).aggregate(Avg('duration'))['duration__avg']
+    
+    # Format duration as hours and minutes
+    if avg_duration:
+        total_minutes = avg_duration.total_seconds() / 60
+        avg_duration_hours = int(total_minutes // 60)
+        avg_duration_minutes = int(total_minutes % 60)
+        avg_duration_formatted = f"{avg_duration_hours}h {avg_duration_minutes}m"
+    else:
+        avg_duration_formatted = "0h 0m"
+    
+    # Entry/Exit time series by day
+    entry_timeseries = entries.annotate(
+        day=ExtractDay('recognition_in__time')
+    ).values('day').annotate(count=Count('id', distinct=True)).order_by('day')
+
+    entry_counts = {item['day']: item['count'] for item in entry_timeseries}
+    entry_timeseries = [
+        {
+            'day': i + 1,
+            'count': entry_counts.get(i + 1, 0)
+        }
+        for i in range(days_in_month)
+    ]
+    
+    exit_timeseries = entries.exclude(recognition_out__isnull=True).annotate(
+        day=ExtractDay('recognition_out__time')
+    ).values('day').annotate(count=Count('id', distinct=True)).order_by('day')
+
+    exit_counts = {item['day']: item['count'] for item in exit_timeseries}
+    exit_timeseries = [
+        {
+            'day': i + 1,
+            'count': exit_counts.get(i + 1, 0)
+        }
+        for i in range(days_in_month)
+    ]
+    
+    # Get busiest day stats
+    busiest_day_detections = max(detection_timeseries, key=lambda x: x['count'])
+    quietest_day_detections = min(detection_timeseries, key=lambda x: x['count'])
+    
+    # Get all cameras for dropdown
+    cameras = Camera.objects.filter(enabled=True)
+    
+    context = {
+        'month_start': month_start,
+        'username': username,
+        'camera_id': camera_id,
+        'cameras': cameras,
+        'total_detections': total_detections,
+        'unrecognized_percentage': round(unrecognized_percentage, 2) if unrecognized_percentage is not None else None,
+        'avg_detections_per_user': round(avg_detections_per_user, 2) if avg_detections_per_user is not None else None,
+        'avg_detections_per_camera': round(avg_detections_per_camera, 2) if avg_detections_per_camera is not None else None,
+        'top_user': top_user,
+        'bottom_user': bottom_user,
+        'top_camera': top_camera,
+        'bottom_camera': bottom_camera,
+        'detection_timeseries': json.dumps(detection_timeseries),
+        'total_entries': total_entries,
+        'avg_duration': avg_duration_formatted,
+        'entry_timeseries': json.dumps(entry_timeseries),
+        'exit_timeseries': json.dumps(exit_timeseries),
+        'busiest_day_detections': busiest_day_detections,
+        'quietest_day_detections': quietest_day_detections,
+        'days_in_month': days_in_month,
+    }
+    
+    return render(request, 'detections_monthly.html', context)
+
