@@ -375,12 +375,9 @@ def users_list_view(request):
 @staff_member_required(login_url='admin:login')    
 def edit_user_view(request, user_id):
     User = apps.get_model('auth', 'User')
-    Group = apps.get_model('auth', 'Group')
     FaceEmbedding = apps.get_model('face_recognition', 'FaceEmbedding')
     user = get_object_or_404(User, id=user_id, is_superuser=False)
     
-    # Get all available groups
-    all_groups = Group.objects.all()
     
     if request.method == 'POST':
         try:
@@ -389,14 +386,7 @@ def edit_user_view(request, user_id):
             user.first_name = request.POST.get('first_name')
             user.last_name = request.POST.get('last_name')
             user.email = request.POST.get('email')
-            
-            # Update groups
-            group_ids = request.POST.getlist('groups')
-            user.groups.clear()
-            if group_ids:
-                groups = Group.objects.filter(id__in=group_ids)
-                user.groups.set(groups)
-            
+
             user.save()
             
             # Handle new face embedding upload
@@ -414,13 +404,11 @@ def edit_user_view(request, user_id):
         
         except Exception as e:
             return render(request, 'edit_user.html', {
-                'user': user,
-                'all_groups': all_groups,
+                'user': user
             })
     
     return render(request, 'edit_user.html', {
-        'user': user,
-        'all_groups': all_groups,
+        'user': user
     })
 
 @staff_member_required(login_url='admin:login')    
@@ -503,10 +491,8 @@ def add_face_embedding_view(request, user_id):
 def add_user_view(request):
     """Handles adding a new user."""
     User = apps.get_model('auth', 'User')
-    Group = apps.get_model('auth', 'Group')
     if request.method == 'GET':
-        all_groups = Group.objects.all()  # Fetch all groups for the dropdown
-        return render(request, 'user_add.html', {'all_groups': all_groups})
+        return render(request, 'user_add.html')
 
     elif request.method == 'POST':
         # Extract data from the POST request
@@ -514,7 +500,6 @@ def add_user_view(request):
         first_name = request.POST.get('first_name')
         last_name = request.POST.get('last_name')
         email = request.POST.get('email')
-        group_ids = request.POST.getlist('groups')  # Groups are sent as a list
 
         # Validate input
         if not username or not email:
@@ -531,11 +516,6 @@ def add_user_view(request):
                 last_name=last_name,
                 email=email,
             )
-
-            # Assign groups to the user
-            if group_ids:
-                groups = Group.objects.filter(id__in=group_ids)
-                user.groups.set(groups)
 
             user.save()  # Save the user to the database
 

@@ -22,18 +22,6 @@
                 <label class="form-label">Email</label>
                 <input type="email" class="form-control" name="email" value="{{ user.email }}" required>
             </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Groups</label>
-                <select name="groups" class="form-select" multiple>
-                    {% for group in all_groups %}
-                        <option value="{{ group.id }}" 
-                                {% if group in user.groups.all %}selected{% endif %}>
-                            {{ group.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
         </div>
         
         <div class="mt-3">
