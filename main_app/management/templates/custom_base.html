@@ -16,21 +16,16 @@
           <div class="collapse navbar-collapse" id="navbarSupportedContent">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
               <li class="nav-item">
-                <a class="nav-link" href="{% url 'cameras_setup' %}">Cameras Setup</a>
+                <a class="nav-link" href="{% url 'cameras_setup' %}">Cameras</a>
               </li>
               <li class="nav-item">
                 <a class="nav-link" href="{% url 'users_list' %}">Users</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="{% url 'settings' %}">System Settings</a>
+                <a class="nav-link" href="{% url 'settings' %}">Settings</a>
               </li>
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  System Health
-                </a>
-                <ul class="dropdown-menu">
-                  <li><a class="dropdown-item" href="{% url 'containers_status' %}">Containers Status</a></li>
-                </ul>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'containers_status' %}">Containers</a>
               </li>
               <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -39,12 +34,27 @@
                 <ul class="dropdown-menu">
                   <li><a class="dropdown-item" href="{% url 'camera_streams' %}">Live Augumented View</a></li>
                   <li><a class="dropdown-item" href="{% url 'camera_streams_raw' %}">Live Raw View</a></li>
-                  <li><a class="dropdown-item" href="{% url 'entries_list' %}">Entries</a></li>
+                </ul>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'entries_list' %}">
+                  Entries
+                </a>
+              </li>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  Stats
+                </a>
+                <ul class="dropdown-menu">
                   <li><a class="dropdown-item" href="{% url 'detections' %}">Daily Stats</a></li>
                   <li><a class="dropdown-item" href="{% url 'detections_weekly' %}">Weekly Stats</a></li>
                   <li><a class="dropdown-item" href="{% url 'detections_monthly' %}">Monthly Stats</a></li>
-                  <li><a class="dropdown-item" href="{% url 'camera_detections' %}">Heatmaps</a></li>
                 </ul>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'camera_detections' %}">
+                  Heatmaps
+                </a>
               </li>
             </ul>
             <ul class="navbar-nav ms-auto">

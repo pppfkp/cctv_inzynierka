@@ -4,13 +4,13 @@
 <h1>Camera Augmented Streams</h1>
 <div class="d-flex flex-wrap justify-content-center">
     {% for stream in streams %}
-    <div class="card m-3" style="max-width: 1080px; width: 100%;">
+    <div class="card m-3" style="width: 40%;">
         <img 
             id="videoFeed" 
             src="{{ stream.video_feed_url }}" 
             alt="Camera stream" 
             class="card-img-top" 
-            style="width: 100%; height: auto;">
+            style="width: 100%; max-width: 1080px;  height: auto;">
         <div class="card-body">
           <h5 class="card-title">Camera: {{ stream.camera_name }}</h5>
           <p class="card-text">

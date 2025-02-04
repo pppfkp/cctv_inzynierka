@@ -1,9 +1,9 @@
 {% extends 'custom_base.html' %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="flex-container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="text-center mb-0">Cameras Setup</h1>
+        <h1 class="text-center mb-0">Cameras</h1>
         <a href="{% url 'add_camera' %}" class="btn btn-success">
             <i class="fas fa-plus"></i> Add Camera
         </a>
@@ -15,7 +15,7 @@
                 <th>Name</th>
                 <th>Link</th>
                 <th>Enabled</th>
-                <th>Photo Path</th>
+                <th>Reference Photo Path</th>
                 <th>Actions</th>
             </tr>
         </thead>
