@@ -51,11 +51,11 @@ def get_new_container_config(camera_id, container_port):
     setting_dict = get_settings()
 
     container_config = {
-        'image': setting_dict.get("detectionContainerImage", 'pppfkp15/flask-ultralytics-gpu:3.0'),
+        'image': setting_dict.get("detectionContainerImage", 'pppfkp15/flask-ultralytics-gpu:4.0'),
         'detach': True,
         'environment': get_container_env(camera_id),
         'network_mode': 'bridge',  
-        'ports': {'5000/tcp': ('0.0.0.0', container_port)},
+        'ports': {'5000/tcp': container_port},  # Simplified port mapping
         'device_requests': [
             docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])
         ]
@@ -209,7 +209,7 @@ def restart_all_containers_logic(hard_restart=False):
         client = get_docker_client()
         Camera = apps.get_model('management', 'Camera')
         CameraContainer = apps.get_model('management', 'CameraContainer')
-        container_port = setting_dict.get('detectionContainersBasePort', 5000)
+        base_port = setting_dict.get('detectionContainersBasePort', 5000)
 
         camera_containers = CameraContainer.objects.all()
 
@@ -222,7 +222,7 @@ def restart_all_containers_logic(hard_restart=False):
                 except docker.errors.NotFound:
                     logging.warning(f"Container with id: {container_record.container_id} was not found.")
                 except Exception as e:
-                    logging.warning(f"Container with id: {container_record.container_id}- something went wrong during the soft restart.")
+                    logging.warning(f"Container with id: {container_record.container_id}- something went wrong during the soft restart: {e}")
         else:
             # Stop and remove all containers
             containers_to_delete = CameraContainer.objects.all()
@@ -231,40 +231,74 @@ def restart_all_containers_logic(hard_restart=False):
                     container = client.containers.get(container_record.container_id)
                     container.stop()
                     container.remove()
-                    container_record.delete()  # Remove the record from the database
+                    container_record.delete()
                     logging.info(f"Container for camera {container_record.camera.name} stopped and deleted.")
                 except docker.errors.NotFound:
                     logging.warning(f"Container not found for camera {container_record.camera.name}. Skipping.")
+                    container_record.delete()
                 except Exception as e:
                     logging.error(f"Error stopping/removing container for camera {container_record.camera.name}: {e}")
             
+            # Add a small delay to ensure ports are freed
+            import time
+            time.sleep(2)
+            
             # Create new containers for all enabled cameras
             enabled_cameras = Camera.objects.filter(enabled=True)
+            used_ports = set()
+            
+            def find_available_port(start_port):
+                """Find the next available port starting from start_port."""
+                import socket
+                current_port = start_port
+                while current_port < 65535:
+                    if current_port in used_ports:
+                        current_port += 1
+                        continue
+                    
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    try:
+                        sock.bind(('', current_port))
+                        sock.close()
+                        return current_port
+                    except OSError:
+                        current_port += 1
+                    finally:
+                        sock.close()
+                raise RuntimeError("No available ports found")
             
             for camera in enabled_cameras:
                 try:
+                    # Find an available port
+                    container_port = find_available_port(base_port)
+                    used_ports.add(container_port)
+                    
                     container_config = get_new_container_config(camera.id, container_port)
-
+                    
                     # Extract the image and pass the rest of the config as keyword arguments
-                    image = container_config.pop('image')  # Remove 'image' from the config
+                    image = container_config.pop('image')
+                    
+                    # Create the container
                     new_container = client.containers.run(image, **container_config)
-
+                    
                     # Save the container info in the database
                     CameraContainer.objects.create(
                         camera=camera,
                         container_id=new_container.id,
                         port=container_port
                     )
-
+                    
                     logging.info(f"New container created for camera {camera.name} at port {container_port}")
-                    container_port += 1
+                        
                 except Exception as e:
                     logging.error(f"Error creating container for camera {camera.name}: {e}")
+                    # Release the port if container creation failed
+                    used_ports.discard(container_port)
             
         return {'message': 'Containers restarted successfully'} 
     except Exception as e:
         logging.error(f"Error restarting containers: {e}")
-        return {'error': str(e), 'status': 500}       
+        return {'error': str(e), 'status': 500}
 
 def start_all_containers_logic():
     """

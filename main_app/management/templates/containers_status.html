@@ -1,18 +1,20 @@
 {% extends 'custom_base.html' %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="text-center mb-4">Camera Containers Status</h1>
+<div class="flex-container mt-4">
 
-    <div class="text-center mb-4">
-        <button class="start-all-btn btn btn-success">Start All Containers</button>
-        <button class="stop-all-btn btn btn-danger">Stop All Containers</button>
-        <button class="btn btn-info soft-reset-all-btn">Soft Reset All Containers</button>
-        <button class="btn btn-warning hard-reset-all-btn">Hard Reset All Containers</button>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-center mb-4">Camera Containers</h1>
+        <div class="text-center mb-4">
+            <button class="m-1 start-all-btn btn btn-success">Start All Containers</button>
+            <button class="m-1 stop-all-btn btn btn-danger">Stop All Containers</button>
+            <button class="m-1 btn btn-info soft-reset-all-btn">Soft Reset All Containers</button>
+            <button class="m-1 btn btn-warning hard-reset-all-btn">Hard Reset All Containers</button>
+        </div>
     </div>
     
     <div class="table-responsive">
-        <table class="table table-bordered table-striped text-center">
+        <table class="table table-bordered table-striped text-center align-middle">
             <thead class="table-dark">
                 <tr>
                     <th>Camera Name</th>
@@ -37,18 +39,18 @@
                     <td>{{ container.last_started|date:"Y-m-d H:i:s" }}</td>
                     <td>
                         {% if container.status != 'running' %}
-                        <button class="btn btn-success start-container-btn" data-camera-id="{{ container.camera_id }}">
+                        <button class="m-1 btn btn-success start-container-btn" data-camera-id="{{ container.camera_id }}">
                             Start
                         </button>
                         {% endif %}
                         {% if container.status == 'running' %}
-                        <button class="btn btn-danger stop-container-btn" data-camera-id="{{ container.camera_id }}">
+                        <button class="m-1 btn btn-danger stop-container-btn" data-camera-id="{{ container.camera_id }}">
                             Stop
                         </button>
-                        <button class="btn btn-info soft-restart-container-btn" data-camera-id="{{ container.camera_id }}">
+                        <button class="m-1 btn btn-info soft-restart-container-btn" data-camera-id="{{ container.camera_id }}">
                             Soft Restart
                         </button>
-                        <button class="btn btn-warning hard-restart-container-btn" data-camera-id="{{ container.camera_id }}">
+                        <button class="m-1 btn btn-warning hard-restart-container-btn" data-camera-id="{{ container.camera_id }}">
                             Hard Restart
                         </button>
                         {% endif %}

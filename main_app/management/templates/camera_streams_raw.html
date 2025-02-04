@@ -4,7 +4,7 @@
 <h1>Cameras Raw Streams</h1>
 <div class="d-flex flex-wrap justify-content-center">
     {% for stream in streams %}
-    <div class="card m-3" style="max-width: 1080px; width: 100%;">
+    <div class="card m-3" style="max-width: 1080px; width: 40%;">
         <img 
             id="videoFeed{{ forloop.counter }}" 
             src="{{ stream.video_feed_url }}" 

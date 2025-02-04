@@ -11,11 +11,19 @@
         <div class="row g-3">
             <div class="col-md-3">
                 <div class="input-group">
-                    <span class="input-group-text">Day</span>
+                    <span class="input-group-text">From</span>
                     <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+                    <input type="time" name="time_from" class="form-control" value="{{ time_from|time:'H:i' }}">
                 </div>
             </div>
             <div class="col-md-3">
+                <div class="input-group">
+                    <span class="input-group-text">To</span>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
+                    <input type="time" name="time_to" class="form-control" value="{{ time_to|time:'H:i' }}">
+                </div>
+            </div>
+            <div class="col-md-2">
                 <select name="camera" class="form-select" aria-label="Select Camera">
                     {% for cam in cameras %}
                     <option value="{{ cam.id }}" {% if cam.id == camera.id %}selected{% endif %}>
@@ -24,7 +32,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="input-group">
                     <span class="input-group-text">User</span>
                     <input type="text" name="user" class="form-control" value="{{ user_filter }}" placeholder="Username or 'none'">

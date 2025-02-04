@@ -1,15 +1,17 @@
 {% extends 'custom_base.html' %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="flex-container mt-4 w-100">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="text-center mb-0">Settings</h1>
-        <button id="reset-all-settings" class="btn btn-warning">
-            <i class="fas fa-undo"></i> Reset All to Default
-        </button>
+        <div class="d-flex justify-content-end mb-3">
+            <button id="reset-all-settings" class="btn btn-warning">
+                <i class="fas fa-undo"></i> Reset All to Default
+            </button>
+        </div>
     </div>
     
-    <table class="table table-striped table-bordered">
+    <table class="table table-striped table-bordered text-center align-middle">
         <thead>
             <tr>
                 <th>Key</th>

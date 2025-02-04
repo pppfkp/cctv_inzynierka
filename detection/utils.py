@@ -213,8 +213,14 @@ def visualize_tracks(frame, tracks, track_user_ids):
         x, y, w, h = map(int, track.xywh)
         track_id = track.track_id
         cv2.rectangle(frame, (x - int(w / 2), y - int(h / 2)), (x + int(w / 2), y + int(h / 2)), (0, 255, 0), 2)
+
+        # Then draw black text on top
         cv2.putText(frame, f"TRACK_ID: {track_id} USER_ID: {track_user_ids.get(track_id)}", 
-                    (x - int(w / 2), y - int(h / 2) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    (x - int(w / 2), y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1.5,
+                    (255, 255, 255),  
+                    3)  # Thinner foreground
     return frame
 
 class StreamClient:
